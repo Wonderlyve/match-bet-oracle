@@ -50,6 +50,13 @@
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Sports betting app colors */
+    --sport-primary: 160 60% 25%;
+    --sport-secondary: 220 80% 45%;
+    --sport-success: 142 70% 45%;
+    --sport-warning: 35 100% 50%;
+    --sport-danger: 0 90% 60%;
   }
 
   .dark {
@@ -88,6 +95,13 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Sports betting app colors - dark mode */
+    --sport-primary: 160 50% 50%;
+    --sport-secondary: 220 70% 60%;
+    --sport-success: 142 60% 50%;
+    --sport-warning: 35 90% 60%;
+    --sport-danger: 0 80% 65%;
   }
 }
 
@@ -104,7 +118,7 @@
 
 @layer utilities {
   .gradient-primary {
-    background: linear-gradient(135deg, #1a5f3f 0%, #2563eb 100%);
+    background: linear-gradient(135deg, hsl(var(--sport-primary)) 0%, hsl(var(--sport-secondary)) 100%);
   }
   
   .gradient-card {
@@ -112,9 +126,34 @@
   }
   
   .text-gradient {
-    background: linear-gradient(135deg, #1a5f3f 0%, #2563eb 100%);
+    background: linear-gradient(135deg, hsl(var(--sport-primary)) 0%, hsl(var(--sport-secondary)) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out forwards;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-in-out forwards;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
+
