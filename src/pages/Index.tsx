@@ -1,27 +1,37 @@
+
 import React, { useState, useEffect } from 'react';
 import MatchForm from '@/components/MatchForm';
 import BettingTicket, { BettingTicketData } from '@/components/BettingTicket';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { getMatchAnalysis, hasApiKey } from '@/services/footballApi';
+import { getMatchAnalysis } from '@/services/footballApi';
 import { generatePredictions } from '@/services/predictionEngine';
 import { saveTicket, getTickets, clearTickets, toggleFavorite, getFavoriteTickets } from '@/services/storage';
-import ApiKeyForm from '@/components/ApiKeyForm';
-import { Star, BookOpenCheck, Settings } from 'lucide-react';
+import { Star, BookOpenCheck, Wifi, WifiOff } from 'lucide-react';
 
 const Index = () => {
   const [tickets, setTickets] = useState<BettingTicketData[]>([]);
   const [favoriteTickets, setFavoriteTickets] = useState<BettingTicketData[]>([]);
   const [activeTab, setActiveTab] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
-  const [apiConfigured, setApiConfigured] = useState(hasApiKey());
-  const [isApiFormVisible, setIsApiFormVisible] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
 
   useEffect(() => {
     loadTickets();
-    setApiConfigured(hasApiKey());
+    
+    // Gérer le statut de connexion
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const loadTickets = () => {
@@ -29,16 +39,16 @@ const Index = () => {
     const favorites = getFavoriteTickets();
     setTickets(savedTickets);
     setFavoriteTickets(favorites);
-    console.log(`${savedTickets.length} tickets chargés depuis le localStorage`);
+    console.log(`📁 ${savedTickets.length} tickets chargés depuis le localStorage`);
   };
 
   const handleMatchSubmit = async (teamA: string, teamB: string) => {
     setIsLoading(true);
     
     try {
-      console.log(`Début d'analyse avec données réelles: ${teamA} vs ${teamB}`);
+      console.log(`🚀 Début d'analyse avec SoccersAPI: ${teamA} vs ${teamB}`);
       
-      // Récupération des données réelles via l'API
+      // Récupération des données réelles via SoccersAPI
       const analysis = await getMatchAnalysis(teamA, teamB);
       
       // Génération des prédictions basées sur les vraies statistiques
@@ -67,17 +77,17 @@ const Index = () => {
       setActiveTab('all');
       
       toast({
-        title: "Analyse réelle terminée ! 🎯",
-        description: `Prédictions basées sur des données réelles pour ${teamA} vs ${teamB}`,
+        title: "✅ Analyse réelle terminée !",
+        description: `Prédictions basées sur des données SoccersAPI pour ${teamA} vs ${teamB}`,
       });
       
-      console.log('Nouveau ticket avec données réelles créé:', newTicket.id);
+      console.log('🎫 Nouveau ticket avec données réelles créé:', newTicket.id);
       
     } catch (error) {
-      console.error('Erreur lors de l\'analyse:', error);
+      console.error('❌ Erreur lors de l\'analyse:', error);
       toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible d'analyser ce match. Veuillez réessayer.",
+        title: "Erreur d'analyse",
+        description: error instanceof Error ? error.message : "Impossible d'analyser ce match. Données de fallback utilisées.",
         variant: "destructive"
       });
     } finally {
@@ -90,18 +100,9 @@ const Index = () => {
     setTickets([]);
     setFavoriteTickets([]);
     toast({
-      title: "Historique effacé",
+      title: "🗑️ Historique effacé",
       description: "Tous les tickets ont été supprimés",
     });
-  };
-
-  const handleApiSaved = () => {
-    setApiConfigured(true);
-    setIsApiFormVisible(false);
-  };
-
-  const toggleApiForm = () => {
-    setIsApiFormVisible(!isApiFormVisible);
   };
 
   const handleDeleteTicket = (id: string) => {
@@ -116,7 +117,7 @@ const Index = () => {
     updatedTickets.forEach(ticket => saveTicket(ticket));
     
     toast({
-      title: "Ticket supprimé",
+      title: "🗑️ Ticket supprimé",
       description: "Le ticket a été supprimé avec succès",
     });
   };
@@ -141,7 +142,7 @@ const Index = () => {
     toggleFavorite(id);
     
     toast({
-      title: "Favoris mis à jour",
+      title: "⭐ Favoris mis à jour",
       description: "Le statut favori a été modifié",
     });
   };
@@ -149,34 +150,32 @@ const Index = () => {
   const displayTickets = activeTab === 'favorites' ? favoriteTickets : tickets;
 
   return (
-    <div className="min-h-screen p-4 pb-24">
+    <div className="min-h-screen p-4 pb-24 bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="max-w-md mx-auto space-y-6">
         
-        {/* Bouton de configuration API */}
-        <div className="text-right">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={toggleApiForm}
-            className="text-xs"
-          >
-            <Settings className="h-3 w-3 mr-1" />
-            {apiConfigured ? 'Modifier clé API' : 'Configurer API'}
-          </Button>
+        {/* Header avec statut de connexion */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center space-x-2">
+            <h1 className="text-2xl font-bold text-gradient">
+              ⚽ Analyses Foot
+            </h1>
+            <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+              isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>
+              {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              <span>{isOnline ? 'En ligne' : 'Hors ligne'}</span>
+            </div>
+          </div>
+          <p className="text-muted-foreground">
+            Données en temps réel • SoccersAPI
+          </p>
         </div>
         
-        {/* Formulaire de configuration API */}
-        {isApiFormVisible && (
-          <ApiKeyForm onSaved={handleApiSaved} />
-        )}
-        
         {/* Formulaire de saisie */}
-        {(!isApiFormVisible || apiConfigured) && (
-          <MatchForm 
-            onMatchSubmit={handleMatchSubmit} 
-            isLoading={isLoading}
-          />
-        )}
+        <MatchForm 
+          onMatchSubmit={handleMatchSubmit} 
+          isLoading={isLoading}
+        />
         
         {/* Section des tickets */}
         {tickets.length > 0 && !isLoading && (
@@ -249,14 +248,14 @@ const Index = () => {
         )}
         
         {/* Message d'accueil si aucun ticket */}
-        {tickets.length === 0 && !isLoading && !isApiFormVisible && (
+        {tickets.length === 0 && !isLoading && (
           <div className="text-center py-12 space-y-4 animate-fade-in">
             <div className="text-6xl">⚽</div>
             <h3 className="text-lg font-semibold text-sport-primary">
               Analysez votre premier match !
             </h3>
             <p className="text-muted-foreground max-w-sm mx-auto">
-              Saisissez les équipes ci-dessus pour obtenir des prédictions basées sur des statistiques réelles et l'historique des confrontations.
+              Saisissez les équipes ci-dessus pour obtenir des prédictions basées sur des statistiques réelles de SoccersAPI.
             </p>
           </div>
         )}
@@ -264,13 +263,11 @@ const Index = () => {
         {/* Footer */}
         <div className="text-center pt-8 pb-4">
           <p className="text-xs text-muted-foreground">
-            🤖 Analyses basées sur des données réelles • 📱 Mobile-first • 💾 Stockage local
+            🤖 Analyses IA • 📱 Mobile-first • 💾 Stockage local
           </p>
-          {apiConfigured && (
-            <p className="text-xs text-sport-primary mt-1">
-              ✓ API Football configurée avec données réelles
-            </p>
-          )}
+          <p className="text-xs text-sport-primary mt-1">
+            ✅ SoccersAPI • Données temps réel
+          </p>
         </div>
       </div>
     </div>

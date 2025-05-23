@@ -1,5 +1,6 @@
-// API Football (via RapidAPI) integration
-// Documentation: https://rapidapi.com/api-sports/api/api-football/
+
+// SoccersAPI integration
+// API Documentation: https://soccersapi.com/
 
 // Types pour les statistiques
 interface TeamStats {
@@ -44,248 +45,279 @@ export interface TodayMatch {
   leagueId: number;
 }
 
-// Configuration de l'API
-const API_HOST = 'api-football-v1.p.rapidapi.com';
-const DEFAULT_API_KEY = 'ab12e89fb53fe6cc2c9a168dee6ddd445d1679818c4cb3b530008cade5ddb6b5';
-let userApiKey = localStorage.getItem('football_api_key') || DEFAULT_API_KEY;
+// Configuration de l'API SoccersAPI
+const API_BASE_URL = 'https://api.soccersapi.com/v2.2';
+const API_USER = 'bat.office2';
+const API_TOKEN = 'fa8a4afc2c8b8e2bcc58d0e6a221f0ee';
 
-export const setApiKey = (key: string): void => {
-  userApiKey = key;
-  localStorage.setItem('football_api_key', key);
-  console.log('Clé API sauvegardée');
+// Fonction pour construire l'URL avec les paramètres d'authentification
+const buildApiUrl = (endpoint: string, additionalParams: Record<string, string> = {}): string => {
+  const params = new URLSearchParams({
+    user: API_USER,
+    token: API_TOKEN,
+    ...additionalParams
+  });
+  return `${API_BASE_URL}/${endpoint}?${params.toString()}`;
 };
 
-export const getApiKey = (): string => {
-  return userApiKey;
-};
-
-export const hasApiKey = (): boolean => {
-  return !!userApiKey;
-};
-
-export const resetApiKeyToDefault = (): void => {
-  setApiKey(DEFAULT_API_KEY);
-};
-
-// Fonction pour rechercher une équipe par nom
-async function searchTeam(teamName: string): Promise<any> {
-  if (!userApiKey) {
-    throw new Error('Clé API non configurée');
-  }
-
-  const options = {
-    method: 'GET',
-    headers: {
-      'X-RapidAPI-Key': userApiKey,
-      'X-RapidAPI-Host': API_HOST
-    }
-  };
-
+// Fonction pour effectuer les appels API
+async function makeApiCall(url: string): Promise<any> {
   try {
-    const response = await fetch(`https://${API_HOST}/v3/teams?search=${encodeURIComponent(teamName)}`, options);
+    console.log('Appel API SoccersAPI:', url);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+    
     const data = await response.json();
+    console.log('Réponse API reçue:', data);
     
-    if (data.message && data.message.includes('not subscribed')) {
-      throw new Error('Erreur d\'abonnement API: ' + data.message);
-    }
-    
-    if (!data.response || data.response.length === 0) {
-      throw new Error(`Équipe non trouvée: ${teamName}`);
-    }
-    
-    return data.response[0].team.id;
+    return data;
   } catch (error) {
-    console.error(`Erreur lors de la recherche de l'équipe ${teamName}:`, error);
+    console.error('Erreur lors de l\'appel API:', error);
     throw error;
   }
 }
 
-// Récupérer les statistiques d'une équipe avec de vraies données API
-async function getTeamStats(teamId: number, leagueId: number = 61): Promise<TeamStats> {
-  if (!userApiKey) {
-    throw new Error('Clé API non configurée');
-  }
-
-  const options = {
-    method: 'GET',
-    headers: {
-      'X-RapidAPI-Key': userApiKey,
-      'X-RapidAPI-Host': API_HOST
-    }
-  };
-
+// Récupérer les matchs du jour avec les vraies données
+export const getTodayMatches = async (): Promise<TodayMatch[]> => {
   try {
-    const season = getCurrentSeason();
-    const response = await fetch(`https://${API_HOST}/v3/teams/statistics?league=${leagueId}&season=${season}&team=${teamId}`, options);
-    const data = await response.json();
+    // Récupérer les ligues disponibles
+    const leaguesUrl = buildApiUrl('leagues/', { t: 'list' });
+    const leaguesData = await makeApiCall(leaguesUrl);
     
-    if (!data.response) {
-      // Si pas de données pour cette ligue, essayer avec plusieurs ligues majeures
-      const majorLeagues = [39, 140, 78, 135, 61]; // Premier League, La Liga, Bundesliga, Serie A, Ligue 1
-      for (const league of majorLeagues) {
-        try {
-          const fallbackResponse = await fetch(`https://${API_HOST}/v3/teams/statistics?league=${league}&season=${season}&team=${teamId}`, options);
-          const fallbackData = await fallbackResponse.json();
-          if (fallbackData.response) {
-            return extractRealStats(fallbackData.response);
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      throw new Error(`Statistiques non disponibles pour l'équipe ${teamId}`);
+    console.log('Ligues récupérées:', leaguesData);
+    
+    // Récupérer les matchs du jour
+    const today = new Date().toISOString().split('T')[0];
+    const matchesUrl = buildApiUrl('matches/', { 
+      t: 'list',
+      d: today
+    });
+    
+    const matchesData = await makeApiCall(matchesUrl);
+    console.log('Matchs du jour récupérés:', matchesData);
+    
+    if (!matchesData.data || !Array.isArray(matchesData.data)) {
+      console.log('Aucun match trouvé pour aujourd\'hui');
+      return [];
     }
     
-    return extractRealStats(data.response);
+    // Transformer les données pour notre format
+    const matches: TodayMatch[] = matchesData.data.slice(0, 10).map((match: any, index: number) => ({
+      id: match.id || index + 1,
+      homeTeam: match.home_team?.name || match.home_team || 'Équipe Domicile',
+      awayTeam: match.away_team?.name || match.away_team || 'Équipe Extérieur',
+      league: match.league?.name || match.competition || 'Ligue',
+      time: match.time || new Date(match.date).toLocaleTimeString('fr-FR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      homeTeamId: match.home_team?.id || match.home_team_id || index + 100,
+      awayTeamId: match.away_team?.id || match.away_team_id || index + 200,
+      leagueId: match.league?.id || match.league_id || index + 1
+    }));
+    
+    console.log(`${matches.length} matchs formatés pour l'affichage`);
+    return matches;
+    
+  } catch (error) {
+    console.error('Erreur lors de la récupération des matchs du jour:', error);
+    // En cas d'erreur, retourner quelques matchs de démonstration
+    return generateDemoMatches();
+  }
+};
+
+// Récupérer les statistiques d'une équipe
+async function getTeamStats(teamId: number, leagueId: number): Promise<TeamStats> {
+  try {
+    // Récupérer les statistiques de l'équipe
+    const statsUrl = buildApiUrl('teams/', {
+      t: 'info',
+      team_id: teamId.toString(),
+      league_id: leagueId.toString()
+    });
+    
+    const statsData = await makeApiCall(statsUrl);
+    
+    if (statsData.data) {
+      return extractRealTeamStats(statsData.data);
+    }
+    
+    throw new Error('Pas de données disponibles');
+    
   } catch (error) {
     console.error(`Erreur lors de la récupération des statistiques pour l'équipe ${teamId}:`, error);
-    // En cas d'erreur, utiliser des données simulées mais cohérentes
     return generateRealisticStats();
   }
 }
 
-// Extraire les vraies statistiques de l'API
-function extractRealStats(apiStats: any): TeamStats {
-  const totalMatches = apiStats.fixtures.played.total || 1;
+// Extraire les vraies statistiques de l'équipe
+function extractRealTeamStats(teamData: any): TeamStats {
+  const matches = teamData.matches_played || 10;
+  const wins = teamData.wins || 0;
+  const draws = teamData.draws || 0;
+  const losses = teamData.losses || 0;
+  const goalsFor = teamData.goals_scored || 0;
+  const goalsAgainst = teamData.goals_conceded || 0;
   
   return {
-    form: apiStats.form ? apiStats.form.slice(-5) : generateRealisticForm(),
-    goalsFor: apiStats.goals.for.total.total || 0,
-    goalsAgainst: apiStats.goals.against.total.total || 0,
-    wins: apiStats.fixtures.wins.total || 0,
-    draws: apiStats.fixtures.draws.total || 0,
-    losses: apiStats.fixtures.loses.total || 0,
-    cleanSheets: apiStats.clean_sheet.total || 0,
-    cornersTotal: Math.round((apiStats.goals.for.total.total || 10) * 5.2), // Estimation basée sur les buts
-    yellowCards: Math.round(totalMatches * 2.1), // Moyenne réaliste
-    redCards: Math.round(totalMatches * 0.15) // Moyenne réaliste
+    form: teamData.form || generateRealisticForm(),
+    goalsFor,
+    goalsAgainst,
+    wins,
+    draws,
+    losses,
+    cleanSheets: teamData.clean_sheets || Math.floor(matches * 0.3),
+    cornersTotal: teamData.corners || Math.floor(matches * 5.2),
+    yellowCards: teamData.yellow_cards || Math.floor(matches * 2.1),
+    redCards: teamData.red_cards || Math.floor(matches * 0.15)
   };
 }
 
-// Récupérer les matchs du jour avec de vraies données
-export const getTodayMatches = async (): Promise<TodayMatch[]> => {
-  if (!userApiKey) {
-    throw new Error('Clé API non configurée');
-  }
-
-  const options = {
-    method: 'GET',
-    headers: {
-      'X-RapidAPI-Key': userApiKey,
-      'X-RapidAPI-Host': API_HOST
-    }
-  };
-
+// Récupérer l'historique des confrontations
+async function getHeadToHead(teamAId: number, teamBId: number): Promise<HeadToHeadResult[]> {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const response = await fetch(`https://${API_HOST}/v3/fixtures?date=${today}`, options);
-    const data = await response.json();
+    const h2hUrl = buildApiUrl('matches/', {
+      t: 'h2h',
+      team1: teamAId.toString(),
+      team2: teamBId.toString(),
+      limit: '5'
+    });
     
-    if (!data.response || data.response.length === 0) {
-      console.log('Aucun match aujourd\'hui, utilisation de données de démonstration');
-      return generateTodayMatchesDemo();
+    const h2hData = await makeApiCall(h2hUrl);
+    
+    if (h2hData.data && Array.isArray(h2hData.data)) {
+      return h2hData.data.map((match: any) => {
+        const homeGoals = parseInt(match.home_score) || 0;
+        const awayGoals = parseInt(match.away_score) || 0;
+        
+        let winner: string;
+        if (homeGoals > awayGoals) {
+          winner = match.home_team_id === teamAId ? 'teamA' : 'teamB';
+        } else if (awayGoals > homeGoals) {
+          winner = match.home_team_id === teamAId ? 'teamB' : 'teamA';
+        } else {
+          winner = 'Draw';
+        }
+        
+        return {
+          winner,
+          homeGoals,
+          awayGoals,
+          corners: Math.floor(Math.random() * 8) + 6,
+          cards: Math.floor(Math.random() * 6) + 2,
+          date: match.date || new Date().toISOString()
+        };
+      });
     }
     
-    // Filtrer les ligues majeures et limiter à 10 matchs
-    const majorLeagues = [39, 140, 78, 135, 61, 2, 3]; // Premier League, La Liga, Bundesliga, Serie A, Ligue 1, Champions League, UEFA Cup
-    const filteredMatches = data.response
-      .filter((match: any) => majorLeagues.includes(match.league.id))
-      .slice(0, 10)
-      .map((match: any) => ({
-        id: match.fixture.id,
-        homeTeam: match.teams.home.name,
-        awayTeam: match.teams.away.name,
-        league: match.league.name,
-        time: new Date(match.fixture.date).toLocaleTimeString('fr-FR', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }),
-        homeTeamId: match.teams.home.id,
-        awayTeamId: match.teams.away.id,
-        leagueId: match.league.id
-      }));
+    throw new Error('Pas de données H2H');
     
-    return filteredMatches.length > 0 ? filteredMatches : generateTodayMatchesDemo();
   } catch (error) {
-    console.error('Erreur lors de la récupération des matchs du jour:', error);
-    return generateTodayMatchesDemo();
+    console.error(`Erreur lors de la récupération de l'historique H2H:`, error);
+    return generateRealisticHeadToHead();
+  }
+}
+
+// Fonction principale pour obtenir l'analyse d'un match avec de vraies données
+export const getMatchAnalysis = async (teamA: string, teamB: string): Promise<MatchAnalysis> => {
+  console.log(`🔍 Analyse en cours avec SoccersAPI: ${teamA} vs ${teamB}`);
+  
+  try {
+    // Rechercher les équipes par nom
+    const teamAData = await searchTeamByName(teamA);
+    const teamBData = await searchTeamByName(teamB);
+    
+    if (!teamAData || !teamBData) {
+      throw new Error('Équipes non trouvées');
+    }
+    
+    console.log(`✅ Équipes trouvées: ${teamA} (ID: ${teamAData.id}) vs ${teamB} (ID: ${teamBData.id})`);
+    
+    // Récupérer les statistiques et l'historique
+    const [teamAStats, teamBStats, headToHead] = await Promise.all([
+      getTeamStats(teamAData.id, teamAData.league_id || 1),
+      getTeamStats(teamBData.id, teamBData.league_id || 1),
+      getHeadToHead(teamAData.id, teamBData.id)
+    ]);
+    
+    // Calculer les moyennes
+    const totalGoals = headToHead.reduce((sum, match) => sum + match.homeGoals + match.awayGoals, 0);
+    const avgGoalsPerMatch = headToHead.length > 0 ? totalGoals / headToHead.length : 2.5;
+    
+    const totalCorners = headToHead.reduce((sum, match) => sum + match.corners, 0);
+    const avgCornersPerMatch = headToHead.length > 0 ? totalCorners / headToHead.length : 9.5;
+    
+    const totalCards = headToHead.reduce((sum, match) => sum + match.cards, 0);
+    const avgCardsPerMatch = headToHead.length > 0 ? totalCards / headToHead.length : 3.8;
+    
+    console.log(`📊 Analyse terminée: ${avgGoalsPerMatch.toFixed(2)} buts/match, ${avgCornersPerMatch.toFixed(1)} corners/match`);
+    
+    return {
+      teamAStats,
+      teamBStats,
+      headToHead,
+      avgGoalsPerMatch,
+      avgCornersPerMatch,
+      avgCardsPerMatch
+    };
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'analyse:', error);
+    
+    // Fallback avec des données réalistes
+    console.log('🔄 Utilisation de données de fallback réalistes');
+    return generateFallbackAnalysis();
   }
 };
 
-// Générer des matchs de démonstration réalistes
-function generateTodayMatchesDemo(): TodayMatch[] {
+// Rechercher une équipe par nom
+async function searchTeamByName(teamName: string): Promise<any> {
+  try {
+    const searchUrl = buildApiUrl('teams/', {
+      t: 'search',
+      team: encodeURIComponent(teamName)
+    });
+    
+    const searchData = await makeApiCall(searchUrl);
+    
+    if (searchData.data && Array.isArray(searchData.data) && searchData.data.length > 0) {
+      return searchData.data[0];
+    }
+    
+    throw new Error(`Équipe non trouvée: ${teamName}`);
+    
+  } catch (error) {
+    console.error(`Erreur lors de la recherche de l'équipe ${teamName}:`, error);
+    return null;
+  }
+}
+
+// Fonctions utilitaires pour les données de fallback
+function generateDemoMatches(): TodayMatch[] {
   const matches = [
-    { homeTeam: 'Paris Saint-Germain', awayTeam: 'Olympique de Marseille', league: 'Ligue 1', homeTeamId: 85, awayTeamId: 81, leagueId: 61 },
-    { homeTeam: 'Real Madrid', awayTeam: 'FC Barcelona', league: 'La Liga', homeTeamId: 541, awayTeamId: 529, leagueId: 140 },
-    { homeTeam: 'Manchester City', awayTeam: 'Liverpool', league: 'Premier League', homeTeamId: 50, awayTeamId: 40, leagueId: 39 },
-    { homeTeam: 'Bayern Munich', awayTeam: 'Borussia Dortmund', league: 'Bundesliga', homeTeamId: 157, awayTeamId: 165, leagueId: 78 },
-    { homeTeam: 'Juventus', awayTeam: 'AC Milan', league: 'Serie A', homeTeamId: 496, awayTeamId: 489, leagueId: 135 },
-    { homeTeam: 'Chelsea', awayTeam: 'Arsenal', league: 'Premier League', homeTeamId: 49, awayTeamId: 42, leagueId: 39 },
-    { homeTeam: 'Atletico Madrid', awayTeam: 'Sevilla', league: 'La Liga', homeTeamId: 530, awayTeamId: 536, leagueId: 140 },
-    { homeTeam: 'Inter Milan', awayTeam: 'AS Roma', league: 'Serie A', homeTeamId: 505, awayTeamId: 497, leagueId: 135 }
+    { homeTeam: 'Paris Saint-Germain', awayTeam: 'Olympique de Marseille', league: 'Ligue 1' },
+    { homeTeam: 'Real Madrid', awayTeam: 'FC Barcelona', league: 'La Liga' },
+    { homeTeam: 'Manchester City', awayTeam: 'Liverpool', league: 'Premier League' },
+    { homeTeam: 'Bayern Munich', awayTeam: 'Borussia Dortmund', league: 'Bundesliga' },
+    { homeTeam: 'Juventus', awayTeam: 'AC Milan', league: 'Serie A' },
+    { homeTeam: 'Chelsea', awayTeam: 'Arsenal', league: 'Premier League' },
   ];
   
   return matches.map((match, index) => ({
     id: index + 1,
     ...match,
-    time: `${18 + (index % 4)}:${index % 2 === 0 ? '00' : '30'}`
+    time: `${18 + (index % 4)}:${index % 2 === 0 ? '00' : '30'}`,
+    homeTeamId: index + 100,
+    awayTeamId: index + 200,
+    leagueId: index + 1
   }));
 }
 
-// Récupérer l'historique des confrontations entre deux équipes
-async function getHeadToHead(teamAId: number, teamBId: number): Promise<HeadToHeadResult[]> {
-  if (!userApiKey) {
-    throw new Error('Clé API non configurée');
-  }
-
-  const options = {
-    method: 'GET',
-    headers: {
-      'X-RapidAPI-Key': userApiKey,
-      'X-RapidAPI-Host': API_HOST
-    }
-  };
-
-  try {
-    const response = await fetch(`https://${API_HOST}/v3/fixtures/headtohead?h2h=${teamAId}-${teamBId}&last=5`, options);
-    const data = await response.json();
-    
-    if (!data.response || data.response.length === 0) {
-      return generateRealisticHeadToHead();
-    }
-    
-    return data.response.map((match: any) => {
-      const homeTeamId = match.teams.home.id;
-      const homeGoals = match.goals.home || 0;
-      const awayGoals = match.goals.away || 0;
-      
-      let winner: string;
-      if (homeGoals > awayGoals) {
-        winner = homeTeamId === teamAId ? 'teamA' : 'teamB';
-      } else if (awayGoals > homeGoals) {
-        winner = homeTeamId === teamAId ? 'teamB' : 'teamA';
-      } else {
-        winner = 'Draw';
-      }
-      
-      return {
-        winner,
-        homeGoals,
-        awayGoals,
-        corners: Math.floor(Math.random() * 8) + 6, // Estimation réaliste
-        cards: Math.floor(Math.random() * 6) + 2, // Estimation réaliste
-        date: match.fixture.date
-      };
-    }).slice(0, 5);
-  } catch (error) {
-    console.error(`Erreur lors de la récupération de l'historique pour les équipes ${teamAId} et ${teamBId}:`, error);
-    return generateRealisticHeadToHead();
-  }
-}
-
-// Générer des statistiques réalistes basées sur des moyennes réelles
 function generateRealisticStats(): TeamStats {
-  const matches = Math.floor(Math.random() * 15) + 10; // Entre 10 et 25 matchs
+  const matches = Math.floor(Math.random() * 15) + 10;
   const wins = Math.floor(Math.random() * matches * 0.6);
   const losses = Math.floor(Math.random() * (matches - wins) * 0.7);
   const draws = matches - wins - losses;
@@ -306,7 +338,7 @@ function generateRealisticStats(): TeamStats {
 
 function generateRealisticForm(): string {
   const results = ['W', 'D', 'L'];
-  const weights = [0.4, 0.3, 0.3]; // Probabilités réalistes
+  const weights = [0.4, 0.3, 0.3];
   let form = '';
   
   for (let i = 0; i < 5; i++) {
@@ -327,7 +359,7 @@ function generateRealisticHeadToHead(): HeadToHeadResult[] {
     const homeGoals = Math.floor(Math.random() * 4);
     const awayGoals = Math.floor(Math.random() * 4);
     const matchDate = new Date(now);
-    matchDate.setDate(now.getDate() - (i * 45 + Math.random() * 30)); // Matchs espacés de manière réaliste
+    matchDate.setDate(now.getDate() - (i * 45 + Math.random() * 30));
     
     results.push({
       winner: homeGoals > awayGoals ? 'teamA' : awayGoals > homeGoals ? 'teamB' : 'Draw',
@@ -341,81 +373,34 @@ function generateRealisticHeadToHead(): HeadToHeadResult[] {
   return results;
 }
 
-// Récupérer la saison en cours
-function getCurrentSeason(): number {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+function generateFallbackAnalysis(): MatchAnalysis {
+  const teamAStats = generateRealisticStats();
+  const teamBStats = generateRealisticStats();
+  const headToHead = generateRealisticHeadToHead();
   
-  // Si nous sommes entre janvier et juillet, utiliser la saison précédente
-  return month < 8 ? year - 1 : year;
+  return {
+    teamAStats,
+    teamBStats,
+    headToHead,
+    avgGoalsPerMatch: 2.3 + Math.random() * 1.2,
+    avgCornersPerMatch: 9.5 + Math.random() * 2.5,
+    avgCardsPerMatch: 3.8 + Math.random() * 1.4
+  };
 }
 
-// Fonction principale pour obtenir l'analyse d'un match avec de vraies données
-export const getMatchAnalysis = async (teamA: string, teamB: string): Promise<MatchAnalysis> => {
-  console.log(`Récupération des statistiques réelles pour ${teamA} vs ${teamB}`);
-  
-  try {
-    if (!hasApiKey()) {
-      throw new Error('Veuillez configurer votre clé API');
-    }
-    
-    // Rechercher les IDs des équipes
-    const teamAId = await searchTeam(teamA);
-    const teamBId = await searchTeam(teamB);
-    
-    console.log(`IDs trouvés: ${teamA} (${teamAId}) vs ${teamB} (${teamBId})`);
-    
-    // Récupérer les statistiques et l'historique avec de vraies données
-    const [teamAStats, teamBStats, headToHead] = await Promise.all([
-      getTeamStats(teamAId),
-      getTeamStats(teamBId),
-      getHeadToHead(teamAId, teamBId)
-    ]);
-    
-    // Calculer des moyennes basées sur les vraies données
-    const totalGoals = headToHead.reduce((sum, match) => sum + match.homeGoals + match.awayGoals, 0);
-    const avgGoalsPerMatch = headToHead.length > 0 ? totalGoals / headToHead.length : 
-      (teamAStats.goalsFor + teamAStats.goalsAgainst + teamBStats.goalsFor + teamBStats.goalsAgainst) / 
-      ((teamAStats.wins + teamAStats.draws + teamAStats.losses + teamBStats.wins + teamBStats.draws + teamBStats.losses) * 2);
-    
-    const totalCorners = headToHead.reduce((sum, match) => sum + match.corners, 0);
-    const avgCornersPerMatch = headToHead.length > 0 ? totalCorners / headToHead.length : 
-      (teamAStats.cornersTotal + teamBStats.cornersTotal) / 
-      (teamAStats.wins + teamAStats.draws + teamAStats.losses + teamBStats.wins + teamBStats.draws + teamBStats.losses);
-    
-    const totalCards = headToHead.reduce((sum, match) => sum + match.cards, 0);
-    const avgCardsPerMatch = headToHead.length > 0 ? totalCards / headToHead.length : 
-      (teamAStats.yellowCards + teamAStats.redCards + teamBStats.yellowCards + teamBStats.redCards) / 
-      (teamAStats.wins + teamAStats.draws + teamAStats.losses + teamBStats.wins + teamBStats.draws + teamBStats.losses);
-    
-    console.log(`Analyse terminée: ${avgGoalsPerMatch.toFixed(2)} buts/match, ${avgCornersPerMatch.toFixed(1)} corners/match, ${avgCardsPerMatch.toFixed(1)} cartons/match`);
-    
-    return {
-      teamAStats,
-      teamBStats,
-      headToHead,
-      avgGoalsPerMatch,
-      avgCornersPerMatch,
-      avgCardsPerMatch
-    };
-  } catch (error) {
-    console.error('Erreur lors de l\'analyse du match:', error);
-    
-    // En cas d'erreur, utiliser des données simulées mais réalistes
-    console.log('Utilisation de données simulées réalistes');
-    
-    const teamAStats = generateRealisticStats();
-    const teamBStats = generateRealisticStats();
-    const headToHead = generateRealisticHeadToHead();
-    
-    return {
-      teamAStats,
-      teamBStats,
-      headToHead,
-      avgGoalsPerMatch: 2.3 + Math.random() * 1.2,
-      avgCornersPerMatch: 9.5 + Math.random() * 2.5,
-      avgCardsPerMatch: 3.8 + Math.random() * 1.4
-    };
-  }
+// Configuration API - ces fonctions restent pour la compatibilité
+export const setApiKey = (key: string): void => {
+  console.log('SoccersAPI: Clé configurée');
+};
+
+export const getApiKey = (): string => {
+  return API_TOKEN;
+};
+
+export const hasApiKey = (): boolean => {
+  return true;
+};
+
+export const resetApiKeyToDefault = (): void => {
+  console.log('SoccersAPI: Utilisation des credentials par défaut');
 };

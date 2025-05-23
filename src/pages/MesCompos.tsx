@@ -7,31 +7,57 @@ import { getTodayMatches, getMatchAnalysis, TodayMatch } from '@/services/footba
 import { generatePredictions } from '@/services/predictionEngine';
 import { saveTicket } from '@/services/storage';
 import { BettingTicketData } from '@/components/BettingTicket';
-import { Loader2, TrendingUp, Clock, Trophy } from 'lucide-react';
+import { Loader2, TrendingUp, Clock, Trophy, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const MesCompos = () => {
   const [matches, setMatches] = useState<TodayMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [analyzingMatch, setAnalyzingMatch] = useState<number | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadTodayMatches();
+    
+    // Gérer le statut de connexion
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const loadTodayMatches = async () => {
     try {
       setIsLoading(true);
+      console.log('🔄 Chargement des matchs du jour depuis SoccersAPI...');
+      
       const todayMatches = await getTodayMatches();
       setMatches(todayMatches);
-      console.log(`${todayMatches.length} matchs chargés pour aujourd'hui`);
+      setLastUpdate(new Date());
+      
+      console.log(`✅ ${todayMatches.length} matchs chargés pour aujourd'hui`);
+      
+      if (todayMatches.length === 0) {
+        toast({
+          title: "ℹ️ Aucun match",
+          description: "Aucun match programmé pour aujourd'hui",
+        });
+      }
+      
     } catch (error) {
-      console.error('Erreur lors du chargement des matchs:', error);
+      console.error('❌ Erreur lors du chargement des matchs:', error);
       toast({
-        title: "Erreur",
-        description: "Impossible de charger les matchs du jour",
+        title: "Erreur de chargement",
+        description: "Impossible de charger les matchs du jour. Vérifiez votre connexion.",
         variant: "destructive"
       });
     } finally {
@@ -43,9 +69,9 @@ const MesCompos = () => {
     setAnalyzingMatch(match.id);
     
     try {
-      console.log(`Analyse en cours: ${match.homeTeam} vs ${match.awayTeam}`);
+      console.log(`🔍 Analyse en cours avec SoccersAPI: ${match.homeTeam} vs ${match.awayTeam}`);
       
-      // Récupération des données via l'API avec de vraies statistiques
+      // Récupération des données via SoccersAPI avec de vraies statistiques
       const analysis = await getMatchAnalysis(match.homeTeam, match.awayTeam);
       
       // Génération des prédictions basées sur les vraies données
@@ -72,7 +98,7 @@ const MesCompos = () => {
       saveTicket(newTicket);
       
       toast({
-        title: "Analyse terminée ! 🎯",
+        title: "✅ Analyse SoccersAPI terminée !",
         description: `Prédictions générées pour ${match.homeTeam} vs ${match.awayTeam}`,
       });
       
@@ -80,9 +106,9 @@ const MesCompos = () => {
       navigate('/');
       
     } catch (error) {
-      console.error('Erreur lors de l\'analyse:', error);
+      console.error('❌ Erreur lors de l\'analyse:', error);
       toast({
-        title: "Erreur",
+        title: "Erreur d'analyse",
         description: error instanceof Error ? error.message : "Impossible d'analyser ce match",
         variant: "destructive"
       });
@@ -96,7 +122,7 @@ const MesCompos = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 pb-20 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-sport-primary" />
-          <p className="text-muted-foreground">Chargement des matchs du jour...</p>
+          <p className="text-muted-foreground">Chargement des matchs SoccersAPI...</p>
         </div>
       </div>
     );
@@ -108,12 +134,39 @@ const MesCompos = () => {
         
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-gradient">
-            📅 Mes Compos
-          </h1>
+          <div className="flex items-center justify-center space-x-2">
+            <h1 className="text-2xl font-bold text-gradient">
+              📅 Mes Compos
+            </h1>
+            <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+              isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>
+              {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              <span>{isOnline ? 'En ligne' : 'Hors ligne'}</span>
+            </div>
+          </div>
           <p className="text-muted-foreground">
-            Matchs du jour • Analyses en temps réel
+            Matchs du jour • SoccersAPI en temps réel
           </p>
+          {lastUpdate && (
+            <p className="text-xs text-muted-foreground">
+              Dernière mise à jour: {lastUpdate.toLocaleTimeString('fr-FR')}
+            </p>
+          )}
+        </div>
+
+        {/* Bouton de rafraîchissement */}
+        <div className="flex justify-center">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={loadTodayMatches}
+            disabled={isLoading}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Actualiser</span>
+          </Button>
         </div>
 
         {/* Statistiques rapides */}
@@ -132,7 +185,7 @@ const MesCompos = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold text-sport-warning">Live</div>
-                <div className="text-xs text-muted-foreground">Données</div>
+                <div className="text-xs text-muted-foreground">SoccersAPI</div>
               </div>
             </div>
           </CardContent>
@@ -168,13 +221,18 @@ const MesCompos = () => {
                   
                   <Button 
                     onClick={() => analyzeMatch(match)}
-                    disabled={analyzingMatch === match.id}
+                    disabled={analyzingMatch === match.id || !isOnline}
                     className="w-full gradient-primary hover:opacity-90 transition-all duration-200 transform hover:scale-[1.02]"
                   >
                     {analyzingMatch === match.id ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Analyse en cours...
+                        Analyse SoccersAPI...
+                      </>
+                    ) : !isOnline ? (
+                      <>
+                        <WifiOff className="h-4 w-4 mr-2" />
+                        Connexion requise
                       </>
                     ) : (
                       <>
@@ -202,7 +260,7 @@ const MesCompos = () => {
         {/* Footer info */}
         <div className="text-center pt-4">
           <p className="text-xs text-muted-foreground">
-            🔄 Données mises à jour en temps réel • 📊 Analyses basées sur l'IA
+            🔄 SoccersAPI • 📊 Analyses IA basées sur données réelles
           </p>
         </div>
       </div>
