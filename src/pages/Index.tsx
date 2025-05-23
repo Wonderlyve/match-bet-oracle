@@ -46,17 +46,17 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      console.log(`🚀 Début d'analyse avec SoccersAPI: ${teamA} vs ${teamB}`);
+      console.log(`🚀 Analyse avec vraies données SoccersAPI: ${teamA} vs ${teamB}`);
       
-      // Récupération des données réelles via SoccersAPI
+      // Récupération des vraies données via SoccersAPI
       const analysis = await getMatchAnalysis(teamA, teamB);
       
       // Génération des prédictions basées sur les vraies statistiques
       const predictions = generatePredictions(teamA, teamB, analysis);
       
-      // Création du ticket avec les vraies données
+      // Création du ticket avec les vraies données SoccersAPI
       const newTicket: BettingTicketData = {
-        id: `ticket_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `real_analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         teamA,
         teamB,
         predictions,
@@ -77,17 +77,17 @@ const Index = () => {
       setActiveTab('all');
       
       toast({
-        title: "✅ Analyse réelle terminée !",
-        description: `Prédictions basées sur des données SoccersAPI pour ${teamA} vs ${teamB}`,
+        title: "🎯 Analyse SoccersAPI réussie !",
+        description: `Prédictions basées sur des vraies données pour ${teamA} vs ${teamB}`,
       });
       
-      console.log('🎫 Nouveau ticket avec données réelles créé:', newTicket.id);
+      console.log('🎫 Nouveau ticket avec vraies données créé:', newTicket.id);
       
     } catch (error) {
-      console.error('❌ Erreur lors de l\'analyse:', error);
+      console.error('❌ Erreur lors de l\'analyse SoccersAPI:', error);
       toast({
-        title: "Erreur d'analyse",
-        description: error instanceof Error ? error.message : "Impossible d'analyser ce match. Données de fallback utilisées.",
+        title: "❌ Erreur d'analyse",
+        description: error instanceof Error ? error.message : "Impossible d'analyser ce match avec SoccersAPI. Vérifiez les noms des équipes.",
         variant: "destructive"
       });
     } finally {
@@ -163,15 +163,15 @@ const Index = () => {
               isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
             }`}>
               {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              <span>{isOnline ? 'En ligne' : 'Hors ligne'}</span>
+              <span>{isOnline ? 'SoccersAPI' : 'Hors ligne'}</span>
             </div>
           </div>
           <p className="text-muted-foreground">
-            Données en temps réel • SoccersAPI
+            Vraies données • SoccersAPI • Validation équipes
           </p>
         </div>
         
-        {/* Formulaire de saisie */}
+        {/* Formulaire de saisie avec validation */}
         <MatchForm 
           onMatchSubmit={handleMatchSubmit} 
           isLoading={isLoading}
@@ -266,7 +266,7 @@ const Index = () => {
             🤖 Analyses IA • 📱 Mobile-first • 💾 Stockage local
           </p>
           <p className="text-xs text-sport-primary mt-1">
-            ✅ SoccersAPI • Données temps réel
+            ✅ SoccersAPI • Vraies données temps réel • Validation équipes
           </p>
         </div>
       </div>
