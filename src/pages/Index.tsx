@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MatchForm from '@/components/MatchForm';
 import BettingTicket, { BettingTicketData } from '@/components/BettingTicket';
@@ -9,7 +8,7 @@ import { getMatchAnalysis, hasApiKey } from '@/services/footballApi';
 import { generatePredictions } from '@/services/predictionEngine';
 import { saveTicket, getTickets, clearTickets, toggleFavorite, getFavoriteTickets } from '@/services/storage';
 import ApiKeyForm from '@/components/ApiKeyForm';
-import { Star, BookOpenCheck, History, Settings } from 'lucide-react';
+import { Star, BookOpenCheck, Settings } from 'lucide-react';
 
 const Index = () => {
   const [tickets, setTickets] = useState<BettingTicketData[]>([]);
@@ -37,15 +36,15 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      console.log(`Début d'analyse: ${teamA} vs ${teamB}`);
+      console.log(`Début d'analyse avec données réelles: ${teamA} vs ${teamB}`);
       
-      // Récupération des données via l'API
+      // Récupération des données réelles via l'API
       const analysis = await getMatchAnalysis(teamA, teamB);
       
-      // Génération des prédictions
+      // Génération des prédictions basées sur les vraies statistiques
       const predictions = generatePredictions(teamA, teamB, analysis);
       
-      // Création du ticket
+      // Création du ticket avec les vraies données
       const newTicket: BettingTicketData = {
         id: `ticket_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         teamA,
@@ -68,11 +67,11 @@ const Index = () => {
       setActiveTab('all');
       
       toast({
-        title: "Analyse terminée ! 🎯",
-        description: `Prédictions générées pour ${teamA} vs ${teamB}`,
+        title: "Analyse réelle terminée ! 🎯",
+        description: `Prédictions basées sur des données réelles pour ${teamA} vs ${teamB}`,
       });
       
-      console.log('Nouveau ticket créé:', newTicket.id);
+      console.log('Nouveau ticket avec données réelles créé:', newTicket.id);
       
     } catch (error) {
       console.error('Erreur lors de l\'analyse:', error);
@@ -150,7 +149,7 @@ const Index = () => {
   const displayTickets = activeTab === 'favorites' ? favoriteTickets : tickets;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 pb-20">
+    <div className="min-h-screen p-4 pb-24">
       <div className="max-w-md mx-auto space-y-6">
         
         {/* Bouton de configuration API */}
@@ -257,7 +256,7 @@ const Index = () => {
               Analysez votre premier match !
             </h3>
             <p className="text-muted-foreground max-w-sm mx-auto">
-              Saisissez les équipes ci-dessus pour obtenir des prédictions basées sur les statistiques et l'historique des confrontations.
+              Saisissez les équipes ci-dessus pour obtenir des prédictions basées sur des statistiques réelles et l'historique des confrontations.
             </p>
           </div>
         )}
@@ -265,11 +264,11 @@ const Index = () => {
         {/* Footer */}
         <div className="text-center pt-8 pb-4">
           <p className="text-xs text-muted-foreground">
-            🤖 Prédictions basées sur l'IA • 📱 Mobile-first • 💾 Stockage local
+            🤖 Analyses basées sur des données réelles • 📱 Mobile-first • 💾 Stockage local
           </p>
           {apiConfigured && (
             <p className="text-xs text-sport-primary mt-1">
-              ✓ API Football configurée
+              ✓ API Football configurée avec données réelles
             </p>
           )}
         </div>
