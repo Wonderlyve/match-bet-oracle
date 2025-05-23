@@ -24,6 +24,15 @@ export const getTickets = (): BettingTicketData[] => {
   }
 };
 
+export const updateTickets = (tickets: BettingTicketData[]): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
+    console.log('Tickets mis à jour');
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour:', error);
+  }
+};
+
 export const clearTickets = (): void => {
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -41,5 +50,31 @@ export const deleteTicket = (ticketId: string): void => {
     console.log('Ticket supprimé:', ticketId);
   } catch (error) {
     console.error('Erreur lors de la suppression:', error);
+  }
+};
+
+export const toggleFavorite = (ticketId: string): void => {
+  try {
+    const existingTickets = getTickets();
+    const updatedTickets = existingTickets.map(ticket => {
+      if (ticket.id === ticketId) {
+        return { ...ticket, favorite: !ticket.favorite };
+      }
+      return ticket;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTickets));
+    console.log('Statut favori modifié:', ticketId);
+  } catch (error) {
+    console.error('Erreur lors de la modification du statut favori:', error);
+  }
+};
+
+export const getFavoriteTickets = (): BettingTicketData[] => {
+  try {
+    const allTickets = getTickets();
+    return allTickets.filter(ticket => ticket.favorite);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des favoris:', error);
+    return [];
   }
 };

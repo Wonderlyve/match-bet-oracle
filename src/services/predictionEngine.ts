@@ -8,12 +8,19 @@ interface TeamStats {
   wins: number;
   draws: number;
   losses: number;
+  cleanSheets: number;
+  cornersTotal: number;
+  yellowCards: number;
+  redCards: number;
 }
 
 interface HeadToHeadResult {
   winner: string;
   homeGoals: number;
   awayGoals: number;
+  corners: number;
+  cards: number;
+  date: string;
 }
 
 interface MatchAnalysis {
@@ -21,6 +28,8 @@ interface MatchAnalysis {
   teamBStats: TeamStats;
   headToHead: HeadToHeadResult[];
   avgGoalsPerMatch: number;
+  avgCornersPerMatch: number;
+  avgCardsPerMatch: number;
 }
 
 export const generatePredictions = (
@@ -44,13 +53,25 @@ export const generatePredictions = (
   const winnerPrediction = predictWinner(teamA, teamB, teamAStrength, teamBStrength, h2hAdvantage);
   predictions.push(winnerPrediction);
   
-  // 2. Prédiction Over/Under
+  // 2. Prédiction Double Chance
+  const doubleChancePrediction = predictDoubleChance(teamA, teamB, teamAStrength, teamBStrength, h2hAdvantage);
+  predictions.push(doubleChancePrediction);
+  
+  // 3. Prédiction Over/Under buts
   const overUnderPrediction = predictOverUnder(analysis.avgGoalsPerMatch, analysis.teamAStats, analysis.teamBStats);
   predictions.push(overUnderPrediction);
   
-  // 3. Prédiction Both Teams to Score
+  // 4. Prédiction Both Teams to Score
   const bttsPredicton = predictBothTeamsToScore(analysis.teamAStats, analysis.teamBStats);
   predictions.push(bttsPredicton);
+  
+  // 5. Prédiction Corners
+  const cornersPrediction = predictCorners(analysis.avgCornersPerMatch, analysis.teamAStats, analysis.teamBStats);
+  predictions.push(cornersPrediction);
+  
+  // 6. Prédiction Cartons
+  const cardsPrediction = predictCards(analysis.avgCardsPerMatch, analysis.teamAStats, analysis.teamBStats);
+  predictions.push(cardsPrediction);
   
   return predictions;
 };
@@ -77,8 +98,8 @@ const analyzeHeadToHead = (h2h: HeadToHeadResult[], teamA: string, teamB: string
   let teamBWins = 0;
   
   h2h.forEach(result => {
-    if (result.winner === teamA) teamAWins++;
-    else if (result.winner === teamB) teamBWins++;
+    if (result.winner === 'teamA') teamAWins++;
+    else if (result.winner === 'teamB') teamBWins++;
   });
   
   return teamAWins - teamBWins;
@@ -111,7 +132,7 @@ const predictWinner = (
     odds = '2.20';
     reasoning = `${teamB} présente de meilleures statistiques récentes malgré l'extérieur.`;
   } else {
-    prediction = 'Match nul ou X';
+    prediction = 'Match nul';
     confidence = 55 + Math.random() * 15;
     odds = '3.10';
     reasoning = 'Les deux équipes sont très équilibrées, le match nul est probable.';
@@ -126,25 +147,70 @@ const predictWinner = (
   };
 };
 
-const predictOverUnder = (avgGoals: number, teamAStats: TeamStats, teamBStats: TeamStats): BettingPrediction => {
-  const teamAAvgGoals = teamAStats.goalsFor / (teamAStats.wins + teamAStats.draws + teamAStats.losses);
-  const teamBAvgGoals = teamBStats.goalsFor / (teamBStats.wins + teamBStats.draws + teamBStats.losses);
-  
-  const projectedGoals = (teamAAvgGoals + teamBAvgGoals + avgGoals) / 2;
+// Nouvelle prédiction: Double Chance
+const predictDoubleChance = (
+  teamA: string,
+  teamB: string,
+  strengthA: number,
+  strengthB: number,
+  h2hAdvantage: number
+): BettingPrediction => {
+  const strengthDiff = strengthA - strengthB + h2hAdvantage;
+  const homeAdvantage = 2;
+  const totalAdvantage = strengthDiff + homeAdvantage;
   
   let prediction: string;
   let confidence: number;
   let odds: string;
   let reasoning: string;
   
-  if (projectedGoals > 2.7) {
+  if (totalAdvantage > 0) {
+    prediction = `${teamA} ou Match nul`;
+    confidence = Math.min(90, 75 + totalAdvantage);
+    odds = '1.35';
+    reasoning = `${teamA} joue à domicile avec un avantage statistique, une défaite semble peu probable.`;
+  } else {
+    prediction = `${teamB} ou Match nul`;
+    confidence = Math.min(90, 75 + Math.abs(totalAdvantage));
+    odds = '1.45';
+    reasoning = `${teamB} montre une forme plus solide, une victoire à l'extérieur ou un nul est probable.`;
+  }
+  
+  return {
+    type: 'Double chance',
+    prediction,
+    confidence: Math.round(confidence),
+    odds,
+    reasoning
+  };
+};
+
+const predictOverUnder = (
+  avgGoals: number, 
+  teamAStats: TeamStats, 
+  teamBStats: TeamStats
+): BettingPrediction => {
+  const teamAAvgGoals = teamAStats.goalsFor / (teamAStats.wins + teamAStats.draws + teamAStats.losses);
+  const teamBAvgGoals = teamBStats.goalsFor / (teamBStats.wins + teamBStats.draws + teamBStats.losses);
+  const teamADefense = teamAStats.cleanSheets / (teamAStats.wins + teamAStats.draws + teamAStats.losses);
+  const teamBDefense = teamBStats.cleanSheets / (teamBStats.wins + teamBStats.draws + teamBStats.losses);
+  
+  const projectedGoals = (teamAAvgGoals + teamBAvgGoals + avgGoals) / 2;
+  const defenseStrength = (teamADefense + teamBDefense) / 2;
+  
+  let prediction: string;
+  let confidence: number;
+  let odds: string;
+  let reasoning: string;
+  
+  if (projectedGoals > 2.7 && defenseStrength < 0.3) {
     prediction = 'Plus de 2.5 buts';
     confidence = Math.min(80, 60 + (projectedGoals - 2.5) * 20);
     odds = '1.75';
     reasoning = 'Les deux équipes ont des attaques productives, match ouvert attendu.';
   } else {
     prediction = 'Moins de 2.5 buts';
-    confidence = Math.min(75, 60 + (2.5 - projectedGoals) * 15);
+    confidence = Math.min(75, 60 + (2.5 - projectedGoals) * 15 + defenseStrength * 20);
     odds = '1.90';
     reasoning = 'Match serré avec des défenses solides, peu de buts attendus.';
   }
@@ -186,6 +252,80 @@ const predictBothTeamsToScore = (teamAStats: TeamStats, teamBStats: TeamStats): 
   
   return {
     type: 'Both Teams to Score',
+    prediction,
+    confidence: Math.round(confidence),
+    odds,
+    reasoning
+  };
+};
+
+// Nouvelle prédiction: Corners
+const predictCorners = (
+  avgCorners: number,
+  teamAStats: TeamStats,
+  teamBStats: TeamStats
+): BettingPrediction => {
+  const teamACorners = teamAStats.cornersTotal / (teamAStats.wins + teamAStats.draws + teamAStats.losses);
+  const teamBCorners = teamBStats.cornersTotal / (teamBStats.wins + teamBStats.draws + teamBStats.losses);
+  
+  const projectedCorners = (teamACorners + teamBCorners + avgCorners) / 3;
+  
+  let prediction: string;
+  let confidence: number;
+  let odds: string;
+  let reasoning: string;
+  
+  if (projectedCorners > 9.5) {
+    prediction = 'Plus de 9.5 corners';
+    confidence = Math.min(75, 55 + (projectedCorners - 9.5) * 5);
+    odds = '1.85';
+    reasoning = 'Les deux équipes génèrent beaucoup de corners dans leurs matchs.';
+  } else {
+    prediction = 'Moins de 9.5 corners';
+    confidence = Math.min(75, 55 + (9.5 - projectedCorners) * 5);
+    odds = '1.95';
+    reasoning = 'Match avec peu d\'occasions aux abords de la surface, peu de corners.';
+  }
+  
+  return {
+    type: 'Total corners',
+    prediction,
+    confidence: Math.round(confidence),
+    odds,
+    reasoning
+  };
+};
+
+// Nouvelle prédiction: Cartons
+const predictCards = (
+  avgCards: number,
+  teamAStats: TeamStats,
+  teamBStats: TeamStats
+): BettingPrediction => {
+  const teamACards = (teamAStats.yellowCards + teamAStats.redCards * 2) / (teamAStats.wins + teamAStats.draws + teamAStats.losses);
+  const teamBCards = (teamBStats.yellowCards + teamBStats.redCards * 2) / (teamBStats.wins + teamBStats.draws + teamBStats.losses);
+  
+  const cardsPropensity = (teamACards + teamBCards + avgCards) / 3;
+  
+  let prediction: string;
+  let confidence: number;
+  let odds: string;
+  let reasoning: string;
+  
+  if (cardsPropensity > 4) {
+    prediction = 'Plus de 3.5 cartons';
+    confidence = Math.min(75, 55 + (cardsPropensity - 3.5) * 8);
+    odds = '1.90';
+    reasoning = 'Match tendu avec tendance disciplinaire médiocre.';
+  } else {
+    prediction = 'Moins de 3.5 cartons';
+    confidence = Math.min(75, 55 + (3.5 - cardsPropensity) * 8);
+    odds = '1.85';
+    reasoning = 'Match calme avec peu de fautes attendues.';
+  }
+  
+  return {
+    type: 'Total cartons',
     prediction,
     confidence: Math.round(confidence),
     odds,

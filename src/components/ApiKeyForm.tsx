@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { setApiKey, getApiKey } from '@/services/footballApi';
+import { setApiKey, getApiKey, resetApiKeyToDefault } from '@/services/footballApi';
 
 interface ApiKeyFormProps {
   onSaved: () => void;
@@ -43,6 +43,18 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({ onSaved }) => {
     onSaved();
   };
 
+  const handleUseDefault = () => {
+    resetApiKeyToDefault();
+    setApiKeyState(getApiKey());
+    
+    toast({
+      title: "Clé API par défaut",
+      description: "La clé API par défaut a été configurée"
+    });
+    
+    onSaved();
+  };
+
   return (
     <Card className="gradient-card shadow-lg border-0 animate-fade-in">
       <CardHeader className="pb-4">
@@ -72,12 +84,23 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({ onSaved }) => {
             </p>
           </div>
           
-          <Button 
-            type="submit" 
-            className="w-full h-12 text-base font-semibold gradient-primary hover:opacity-90 transition-all duration-200 transform hover:scale-[1.02]"
-          >
-            Sauvegarder la clé API
-          </Button>
+          <div className="flex flex-col space-y-2">
+            <Button 
+              type="submit" 
+              className="w-full h-12 text-base font-semibold gradient-primary hover:opacity-90 transition-all duration-200 transform hover:scale-[1.02]"
+            >
+              Sauvegarder la clé API
+            </Button>
+            
+            <Button 
+              type="button"
+              variant="outline" 
+              onClick={handleUseDefault}
+              className="w-full"
+            >
+              Utiliser la clé par défaut
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

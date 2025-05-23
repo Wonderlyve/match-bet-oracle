@@ -1,7 +1,10 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronUp, Trash2, Star, StarOff } from 'lucide-react';
+import { deleteTicket } from '@/services/storage';
 
 export interface BettingPrediction {
   type: string;
@@ -17,19 +20,30 @@ export interface BettingTicketData {
   teamB: string;
   predictions: BettingPrediction[];
   createdAt: string;
+  favorite?: boolean;
   statistics?: {
     teamAForm: string;
     teamBForm: string;
     headToHead: string;
     avgGoals: string;
+    avgCorners?: string;
+    avgCards?: string;
   };
 }
 
 interface BettingTicketProps {
   ticket: BettingTicketData;
+  onDelete?: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
 }
 
-const BettingTicket: React.FC<BettingTicketProps> = ({ ticket }) => {
+const BettingTicket: React.FC<BettingTicketProps> = ({ 
+  ticket, 
+  onDelete,
+  onToggleFavorite
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 80) return 'bg-sport-success text-white';
     if (confidence >= 60) return 'bg-sport-warning text-white';
@@ -42,21 +56,59 @@ const BettingTicket: React.FC<BettingTicketProps> = ({ ticket }) => {
     return 'Incertain';
   };
 
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(ticket.id);
+    } else {
+      deleteTicket(ticket.id);
+      window.location.reload();
+    }
+  };
+
+  const handleToggleFavorite = () => {
+    if (onToggleFavorite) {
+      onToggleFavorite(ticket.id);
+    }
+  };
+
+  const getTopPredictions = () => {
+    // Afficher les 3 prédictions les plus probables lorsque le ticket n'est pas étendu
+    return [...ticket.predictions]
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 3);
+  };
+
   return (
-    <Card className="gradient-card shadow-lg border-0 hover:shadow-xl transition-all duration-300 animate-slide-up">
+    <Card className={`gradient-card shadow-lg border-0 hover:shadow-xl transition-all duration-300 animate-slide-up ${ticket.favorite ? 'ring-2 ring-sport-warning' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-bold text-sport-primary">
             {ticket.teamA} vs {ticket.teamB}
           </CardTitle>
-          <span className="text-xs text-muted-foreground">
-            {new Date(ticket.createdAt).toLocaleDateString('fr-FR', {
-              day: '2-digit',
-              month: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </span>
+          <div className="flex items-center space-x-2">
+            {onToggleFavorite && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0" 
+                onClick={handleToggleFavorite}
+              >
+                {ticket.favorite ? (
+                  <Star className="h-4 w-4 text-sport-warning" fill="currentColor" />
+                ) : (
+                  <StarOff className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {new Date(ticket.createdAt).toLocaleDateString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
+          </div>
         </div>
         
         {ticket.statistics && (
@@ -70,6 +122,9 @@ const BettingTicket: React.FC<BettingTicketProps> = ({ ticket }) => {
               <span className="font-medium">H2H:</span>
               <div>{ticket.statistics.headToHead}</div>
               <div>Moy. buts: {ticket.statistics.avgGoals}</div>
+              {ticket.statistics.avgCorners && (
+                <div>Moy. corners: {ticket.statistics.avgCorners}</div>
+              )}
             </div>
           </div>
         )}
@@ -77,7 +132,7 @@ const BettingTicket: React.FC<BettingTicketProps> = ({ ticket }) => {
       
       <CardContent className="pt-0">
         <div className="space-y-3">
-          {ticket.predictions.map((prediction, index) => (
+          {(expanded ? ticket.predictions : getTopPredictions()).map((prediction, index) => (
             <div key={index} className="bg-white p-3 rounded-lg border border-slate-200">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold text-sm text-sport-primary">
@@ -116,6 +171,39 @@ const BettingTicket: React.FC<BettingTicketProps> = ({ ticket }) => {
           ))}
         </div>
       </CardContent>
+      
+      <CardFooter className="flex justify-between pt-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-xs text-muted-foreground hover:text-sport-danger"
+          onClick={handleDelete}
+        >
+          <Trash2 className="h-3 w-3 mr-1" />
+          Supprimer
+        </Button>
+        
+        {ticket.predictions.length > 3 && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-sport-primary"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="h-3 w-3 mr-1" />
+                Réduire
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3 mr-1" />
+                Voir tout ({ticket.predictions.length})
+              </>
+            )}
+          </Button>
+        )}
+      </CardFooter>
     </Card>
   );
 };
