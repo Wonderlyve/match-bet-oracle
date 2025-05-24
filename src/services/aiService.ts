@@ -1,3 +1,4 @@
+
 // Service IA pour collecte automatisée d'informations football
 // Respecte les CGU et utilise uniquement des données publiques
 
@@ -114,7 +115,7 @@ export const collectAIData = async (teamA: string, teamB: string): Promise<AIDat
 // Génération d'analyse IA avancée du match
 const generateAdvancedMatchAnalysis = (teamA: string, teamB: string, teamAInfo: any, teamBInfo: any, socialData: any): string => {
   const homeAdvantage = calculateHomeAdvantage(teamA);
-  const formAnalysis = analyzeAdvancedTeamForm(teamAInfo.recentResults, teamBInfo.recentResults);
+  const formAnalysis = analyzeAdvancedTeamForm(teamAInfo.recentResults, teamBInfo.recentResults, teamA, teamB);
   const sentimentAnalysis = analyzeSentimentImpact(socialData);
   const injuryImpact = analyzeInjuryImpact(teamAInfo.injuries, teamBInfo.injuries);
   const tacticalAnalysis = generateTacticalAnalysis(teamA, teamB, teamAInfo, teamBInfo);
@@ -154,7 +155,7 @@ const calculateHomeAdvantage = (teamA: string): string => {
 };
 
 // Analyse de la forme des équipes améliorée
-const analyzeAdvancedTeamForm = (formA: string[], formB: string[]): string => {
+const analyzeAdvancedTeamForm = (formA: string[], formB: string[], teamA: string, teamB: string): string => {
   const scoreA = formA.reduce((acc, result) => acc + (result === 'W' ? 3 : result === 'D' ? 1 : 0), 0);
   const scoreB = formB.reduce((acc, result) => acc + (result === 'W' ? 3 : result === 'D' ? 1 : 0), 0);
   
@@ -197,7 +198,7 @@ const analyzeSentimentImpact = (socialData: any): string => {
   const awayPercentage = (socialData.awayTeamSentiment * 100).toFixed(0);
   
   if (Math.abs(diff) > 0.5) {
-    return `Le sentiment public est fortement orienté (${homePercentage}% vs ${awayPercentage}%) en faveur de ${diff > 0 ? 'l'équipe domicile' : 'l'équipe visiteur'}. Cette tendance peut influencer la pression sur les joueurs.`;
+    return `Le sentiment public est fortement orienté (${homePercentage}% vs ${awayPercentage}%) en faveur de ${diff > 0 ? 'l\'équipe domicile' : 'l\'équipe visiteur'}. Cette tendance peut influencer la pression sur les joueurs.`;
   }
   return `Sentiment public relativement équilibré (${homePercentage}% vs ${awayPercentage}%) entre les deux équipes, aucun favoritisme marqué détecté.`;
 };
@@ -371,7 +372,6 @@ const generateContextualResults = (teamName: string): string[] => {
     team.toLowerCase().includes(teamName.toLowerCase())
   );
   
-  const results = ['W', 'D', 'L'];
   const form = [];
   
   for (let i = 0; i < 5; i++) {
@@ -545,26 +545,6 @@ export const generateAIInsights = (aiData: AIData, teamA: string, teamB: string)
 };
 
 // Utilitaires pour la simulation réaliste
-const generateRecentResults = (): string[] => {
-  const results = ['W', 'D', 'L'];
-  return Array.from({ length: 5 }, () => 
-    results[Math.floor(Math.random() * results.length)]
-  );
-};
-
-const generateInjuries = (teamName: string): string[] => {
-  const commonInjuries = ['Défenseur central', 'Milieu offensif', 'Attaquant', 'Gardien'];
-  const injuryCount = Math.random() > 0.7 ? Math.floor(Math.random() * 3) : 0;
-  
-  return Array.from({ length: injuryCount }, (_, i) => 
-    `${commonInjuries[i % commonInjuries.length]} blessé`
-  );
-};
-
-const generateSuspensions = (teamName: string): string[] => {
-  return Math.random() > 0.8 ? ['Joueur suspendu (cartons)'] : [];
-};
-
 const generateKeyPlayers = (teamName: string): string[] => {
   return [`Capitaine de ${teamName}`, `Meilleur buteur`, `Milieu créatif`];
 };
