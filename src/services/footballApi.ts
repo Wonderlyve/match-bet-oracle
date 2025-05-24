@@ -1,3 +1,4 @@
+
 export interface TodayMatch {
   id: number;
   time: string;
@@ -36,6 +37,22 @@ interface MatchAnalysis {
   avgCornersPerMatch: number;
   avgCardsPerMatch: number;
 }
+
+// Gestion des clés API
+const API_KEY_STORAGE = 'api_football_key';
+const DEFAULT_API_KEY = 'fa8a4afc2c8b8e2bcc58d0e6a221f0ee';
+
+export const setApiKey = (key: string): void => {
+  localStorage.setItem(API_KEY_STORAGE, key);
+};
+
+export const getApiKey = (): string => {
+  return localStorage.getItem(API_KEY_STORAGE) || DEFAULT_API_KEY;
+};
+
+export const resetApiKeyToDefault = (): void => {
+  localStorage.setItem(API_KEY_STORAGE, DEFAULT_API_KEY);
+};
 
 // Simulation de l'appel API pour les matchs du jour
 export const getTodayMatches = async (): Promise<TodayMatch[]> => {

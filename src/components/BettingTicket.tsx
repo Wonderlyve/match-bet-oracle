@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import AIAnalysis from './OSINTAnalysis';
-import { collectAIData, generateAIInsights, AIData, AIMatchInsight } from '@/services/osintService';
+import AIAnalysis from './AIAnalysis';
+import { collectAIData, generateAIInsights, AIData, AIMatchInsight } from '@/services/aiService';
 import { 
   TrendingUp, 
   Star, 
@@ -95,18 +94,18 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
   };
 
   const formatStatistic = (label: string, value: string, description: string) => (
-    <div className="p-3 border rounded-lg bg-white/50">
-      <h4 className="font-medium text-sm mb-1">{label}</h4>
-      <div className="text-lg font-bold text-sport-primary mb-1">{value}</div>
+    <div className="p-2 border rounded-lg bg-white/50">
+      <h4 className="font-medium text-xs mb-1">{label}</h4>
+      <div className="text-sm font-bold text-sport-primary mb-1">{value}</div>
       <p className="text-xs text-muted-foreground">{description}</p>
     </div>
   );
 
   return (
     <Card className="gradient-card shadow-lg border-0 animate-fade-in overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-bold">
+          <CardTitle className="text-base font-bold">
             🎯 {ticket.teamA} vs {ticket.teamB}
           </CardTitle>
           <div className="flex items-center space-x-2">
@@ -115,128 +114,127 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => onToggleFavorite(ticket.id)}
-                className="text-yellow-500 hover:text-yellow-600"
+                className="text-yellow-500 hover:text-yellow-600 p-1"
               >
-                <Star className={`h-4 w-4 ${ticket.isFavorite ? 'fill-current' : ''}`} />
+                <Star className={`h-3 w-3 ${ticket.isFavorite ? 'fill-current' : ''}`} />
               </Button>
             )}
           </div>
         </div>
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center space-x-1">
             <Calendar className="h-3 w-3" />
             <span>{formatDate(ticket.createdAt)}</span>
           </div>
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs px-1 py-0">
             ID: {ticket.id.slice(-8)}
           </Badge>
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="p-3">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="predictions" className="flex items-center space-x-1">
+          <TabsList className="grid w-full grid-cols-3 h-8">
+            <TabsTrigger value="predictions" className="flex items-center space-x-1 text-xs">
               <Target className="h-3 w-3" />
-              <span className="text-xs">Prédictions</span>
+              <span>Prédictions</span>
             </TabsTrigger>
-            <TabsTrigger value="stats" className="flex items-center space-x-1">
+            <TabsTrigger value="stats" className="flex items-center space-x-1 text-xs">
               <BarChart3 className="h-3 w-3" />
-              <span className="text-xs">Statistiques</span>
+              <span>Stats</span>
             </TabsTrigger>
             <TabsTrigger 
               value="ai" 
-              className="flex items-center space-x-1"
+              className="flex items-center space-x-1 text-xs"
               onClick={loadAIAnalysis}
             >
               <Brain className="h-3 w-3" />
-              <span className="text-xs">IA</span>
+              <span>IA</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="predictions" className="space-y-3 mt-4">
+          <TabsContent value="predictions" className="space-y-2 mt-3">
             {ticket.predictions.map((prediction, index) => (
-              <div key={index} className="p-3 border rounded-lg bg-white/50">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-sm">{prediction.type}</h4>
-                  <div className="flex items-center space-x-2">
+              <div key={index} className="p-2 border rounded-lg bg-white/50">
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="font-medium text-xs">{prediction.type}</h4>
+                  <div className="flex items-center space-x-1">
                     <div className={`w-2 h-2 rounded-full ${getConfidenceColor(prediction.confidence)}`} />
                     <span className="text-xs text-muted-foreground">{prediction.confidence}%</span>
                   </div>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sport-primary">{prediction.prediction}</span>
-                    <Badge variant="outline" className="text-xs">
-                      Cote: {prediction.odds}
+                    <span className="font-semibold text-sport-primary text-xs">{prediction.prediction}</span>
+                    <Badge variant="outline" className="text-xs px-1 py-0">
+                      {prediction.odds}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{prediction.reasoning}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{prediction.reasoning}</p>
                 </div>
               </div>
             ))}
           </TabsContent>
 
-          <TabsContent value="stats" className="space-y-3 mt-4">
+          <TabsContent value="stats" className="space-y-3 mt-3">
             {ticket.statistics ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {formatStatistic(
-                    "Forme des équipes", 
+                    "Forme équipes", 
                     `${ticket.statistics.teamAForm} vs ${ticket.statistics.teamBForm}`,
-                    "Résultats des 5 derniers matchs (V-N-D)"
+                    "5 derniers matchs (V-N-D)"
                   )}
                   {formatStatistic(
-                    "Historique face-à-face", 
+                    "Face-à-face", 
                     ticket.statistics.headToHead,
-                    "Victoires-Nuls-Défaites historiques"
+                    "Victoires-Nuls-Défaites"
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1">
                   {formatStatistic(
-                    "Buts/match", 
+                    "Buts", 
                     ticket.statistics.avgGoals,
-                    "Moyenne par rencontre"
+                    "Moy./match"
                   )}
                   {formatStatistic(
-                    "Corners/match", 
+                    "Corners", 
                     ticket.statistics.avgCorners,
-                    "Corners par match"
+                    "Moy./match"
                   )}
                   {formatStatistic(
-                    "Cartons/match", 
+                    "Cartons", 
                     ticket.statistics.avgCards,
-                    "Cartons par rencontre"
+                    "Moy./match"
                   )}
                 </div>
                 
-                {/* Explication des statistiques */}
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2 text-blue-800">
-                    📊 Comment interpréter ces données ?
+                {/* Guide d'interprétation - Version mobile compacte */}
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-xs mb-1 text-blue-800">
+                    📊 Guide d'interprétation
                   </h4>
-                  <div className="text-xs text-blue-700 space-y-1">
-                    <p><strong>• Forme récente :</strong> Plus de 'W' (victoires) = équipe en confiance</p>
-                    <p><strong>• Face-à-face :</strong> Tendance historique entre les équipes</p>
-                    <p><strong>• Buts/match :</strong> Plus de 2.5 = matchs généralement ouverts</p>
-                    <p><strong>• Corners :</strong> Plus de 9 = équipes offensives</p>
-                    <p><strong>• Cartons :</strong> Plus de 4 = match tendu/âpre</p>
+                  <div className="text-xs text-blue-700 space-y-0.5">
+                    <p><strong>Forme :</strong> Plus de 'W' = équipe en confiance</p>
+                    <p><strong>Buts/match :</strong> Plus de 2.5 = matchs ouverts</p>
+                    <p><strong>Corners :</strong> Plus de 9 = jeu offensif</p>
+                    <p><strong>Cartons :</strong> Plus de 4 = match tendu</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Aucune statistique disponible</p>
+              <div className="text-center py-6 text-muted-foreground">
+                <BarChart3 className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">Aucune statistique disponible</p>
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="ai" className="mt-4">
+          <TabsContent value="ai" className="mt-3">
             {loadingAI ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-purple-600" />
-                <p className="text-sm text-muted-foreground">Analyse IA en cours...</p>
+              <div className="text-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-purple-600" />
+                <p className="text-xs text-muted-foreground">Analyse IA en cours...</p>
                 <p className="text-xs text-muted-foreground mt-1">Intelligence artificielle • Sources multiples</p>
               </div>
             ) : aiData ? (
@@ -247,9 +245,9 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
                 teamB={ticket.teamB}
               />
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Cliquez pour charger l'analyse IA</p>
+              <div className="text-center py-6 text-muted-foreground">
+                <Brain className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">Cliquez pour charger l'analyse IA</p>
                 <p className="text-xs mt-1">Intelligence artificielle • Analyse approfondie</p>
               </div>
             )}
@@ -258,12 +256,12 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
 
         {/* Actions */}
         {onDelete && (
-          <div className="mt-4 pt-3 border-t">
+          <div className="mt-3 pt-2 border-t">
             <Button 
               variant="destructive" 
               size="sm" 
               onClick={() => onDelete(ticket.id)}
-              className="w-full"
+              className="w-full text-xs h-8"
             >
               Supprimer ce ticket
             </Button>
