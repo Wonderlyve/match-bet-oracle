@@ -77,17 +77,17 @@ const Index = () => {
       setActiveTab('all');
       
       toast({
-        title: "🎯 Analyse SoccersAPI réussie !",
+        title: "🎯 Analyse IA réussie !",
         description: `Prédictions basées sur des vraies données pour ${teamA} vs ${teamB}`,
       });
       
       console.log('🎫 Nouveau ticket avec vraies données créé:', newTicket.id);
       
     } catch (error) {
-      console.error('❌ Erreur lors de l\'analyse SoccersAPI:', error);
+      console.error('❌ Erreur lors de l\'analyse IA:', error);
       toast({
         title: "❌ Erreur d'analyse",
-        description: error instanceof Error ? error.message : "Impossible d'analyser ce match avec SoccersAPI. Vérifiez les noms des équipes.",
+        description: error instanceof Error ? error.message : "Impossible d'analyser ce match avec l'IA. Vérifiez les noms des équipes.",
         variant: "destructive"
       });
     } finally {
@@ -126,8 +126,8 @@ const Index = () => {
     // Mise à jour des états locaux
     const updatedTickets = tickets.map(ticket => {
       if (ticket.id === id) {
-        const isFavorite = !ticket.favorite;
-        return { ...ticket, favorite: isFavorite };
+        const isFavorite = !ticket.isFavorite;
+        return { ...ticket, isFavorite };
       }
       return ticket;
     });
@@ -135,7 +135,7 @@ const Index = () => {
     setTickets(updatedTickets);
     
     // Mise à jour des favoris
-    const updatedFavorites = updatedTickets.filter(ticket => ticket.favorite);
+    const updatedFavorites = updatedTickets.filter(ticket => ticket.isFavorite);
     setFavoriteTickets(updatedFavorites);
     
     // Mise à jour dans le localStorage
@@ -157,7 +157,7 @@ const Index = () => {
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center space-x-2">
             <h1 className="text-2xl font-bold text-gradient">
-              ⚽ Analyses Foot
+              ⚽ Analyses Foot IA
             </h1>
             <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
               isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -167,7 +167,7 @@ const Index = () => {
             </div>
           </div>
           <p className="text-muted-foreground">
-            Vraies données • SoccersAPI • Validation équipes
+            Intelligence Artificielle • Analyses avancées • Validation équipes
           </p>
         </div>
         
@@ -255,7 +255,7 @@ const Index = () => {
               Analysez votre premier match !
             </h3>
             <p className="text-muted-foreground max-w-sm mx-auto">
-              Saisissez les équipes ci-dessus pour obtenir des prédictions basées sur des statistiques réelles de SoccersAPI.
+              Saisissez les équipes ci-dessus pour obtenir des prédictions basées sur l'intelligence artificielle et des statistiques réelles.
             </p>
           </div>
         )}
@@ -266,7 +266,7 @@ const Index = () => {
             🤖 Analyses IA • 📱 Mobile-first • 💾 Stockage local
           </p>
           <p className="text-xs text-sport-primary mt-1">
-            ✅ SoccersAPI • Vraies données temps réel • Validation équipes
+            ✅ SoccersAPI • Intelligence Artificielle • Validation équipes
           </p>
         </div>
       </div>

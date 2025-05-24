@@ -4,15 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import OSINTAnalysis from './OSINTAnalysis';
-import { collectOSINTData, generateOSINTInsights, OSINTData, OSINTMatchInsight } from '@/services/osintService';
+import AIAnalysis from './OSINTAnalysis';
+import { collectAIData, generateAIInsights, AIData, AIMatchInsight } from '@/services/osintService';
 import { 
   TrendingUp, 
   Star, 
   BarChart3, 
   Target, 
   Calendar,
-  Eye,
+  Brain,
   Loader2
 } from 'lucide-react';
 
@@ -52,29 +52,29 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
   onToggleFavorite, 
   onDelete 
 }) => {
-  const [osintData, setOsintData] = useState<OSINTData | null>(null);
-  const [osintInsights, setOsintInsights] = useState<OSINTMatchInsight[]>([]);
-  const [loadingOSINT, setLoadingOSINT] = useState(false);
+  const [aiData, setAiData] = useState<AIData | null>(null);
+  const [aiInsights, setAiInsights] = useState<AIMatchInsight[]>([]);
+  const [loadingAI, setLoadingAI] = useState(false);
   const [activeTab, setActiveTab] = useState('predictions');
 
-  const loadOSINTAnalysis = async () => {
-    if (osintData) return; // Déjà chargé
+  const loadAIAnalysis = async () => {
+    if (aiData) return; // Déjà chargé
     
-    setLoadingOSINT(true);
+    setLoadingAI(true);
     try {
-      console.log(`🕵️ Chargement analyse OSINT pour ${ticket.teamA} vs ${ticket.teamB}`);
+      console.log(`🤖 Chargement analyse IA pour ${ticket.teamA} vs ${ticket.teamB}`);
       
-      const data = await collectOSINTData(ticket.teamA, ticket.teamB);
-      const insights = generateOSINTInsights(data, ticket.teamA, ticket.teamB);
+      const data = await collectAIData(ticket.teamA, ticket.teamB);
+      const insights = generateAIInsights(data, ticket.teamA, ticket.teamB);
       
-      setOsintData(data);
-      setOsintInsights(insights);
+      setAiData(data);
+      setAiInsights(insights);
       
-      console.log('✅ Analyse OSINT chargée:', data);
+      console.log('✅ Analyse IA chargée:', data);
     } catch (error) {
-      console.error('❌ Erreur OSINT:', error);
+      console.error('❌ Erreur IA:', error);
     } finally {
-      setLoadingOSINT(false);
+      setLoadingAI(false);
     }
   };
 
@@ -93,6 +93,14 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
       minute: '2-digit'
     });
   };
+
+  const formatStatistic = (label: string, value: string, description: string) => (
+    <div className="p-3 border rounded-lg bg-white/50">
+      <h4 className="font-medium text-sm mb-1">{label}</h4>
+      <div className="text-lg font-bold text-sport-primary mb-1">{value}</div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </div>
+  );
 
   return (
     <Card className="gradient-card shadow-lg border-0 animate-fade-in overflow-hidden">
@@ -137,12 +145,12 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
               <span className="text-xs">Statistiques</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="osint" 
+              value="ai" 
               className="flex items-center space-x-1"
-              onClick={loadOSINTAnalysis}
+              onClick={loadAIAnalysis}
             >
-              <Eye className="h-3 w-3" />
-              <span className="text-xs">OSINT</span>
+              <Brain className="h-3 w-3" />
+              <span className="text-xs">IA</span>
             </TabsTrigger>
           </TabsList>
 
@@ -171,35 +179,48 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
 
           <TabsContent value="stats" className="space-y-3 mt-4">
             {ticket.statistics ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 border rounded-lg bg-white/50">
-                  <h4 className="font-medium text-sm mb-2">Forme des équipes</h4>
-                  <div className="space-y-1">
-                    <div className="text-xs">
-                      <span className="text-muted-foreground">{ticket.teamA}:</span>
-                      <span className="ml-2 font-mono">{ticket.statistics.teamAForm}</span>
-                    </div>
-                    <div className="text-xs">
-                      <span className="text-muted-foreground">{ticket.teamB}:</span>
-                      <span className="ml-2 font-mono">{ticket.statistics.teamBForm}</span>
-                    </div>
-                  </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  {formatStatistic(
+                    "Forme des équipes", 
+                    `${ticket.statistics.teamAForm} vs ${ticket.statistics.teamBForm}`,
+                    "Résultats des 5 derniers matchs (V-N-D)"
+                  )}
+                  {formatStatistic(
+                    "Historique face-à-face", 
+                    ticket.statistics.headToHead,
+                    "Victoires-Nuls-Défaites historiques"
+                  )}
                 </div>
-                <div className="p-3 border rounded-lg bg-white/50">
-                  <h4 className="font-medium text-sm mb-2">Historique H2H</h4>
-                  <div className="text-center">
-                    <span className="text-xl font-bold text-sport-primary">
-                      {ticket.statistics.headToHead}
-                    </span>
-                    <p className="text-xs text-muted-foreground">V-N-D</p>
-                  </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {formatStatistic(
+                    "Buts/match", 
+                    ticket.statistics.avgGoals,
+                    "Moyenne par rencontre"
+                  )}
+                  {formatStatistic(
+                    "Corners/match", 
+                    ticket.statistics.avgCorners,
+                    "Corners par match"
+                  )}
+                  {formatStatistic(
+                    "Cartons/match", 
+                    ticket.statistics.avgCards,
+                    "Cartons par rencontre"
+                  )}
                 </div>
-                <div className="p-3 border rounded-lg bg-white/50">
-                  <h4 className="font-medium text-sm mb-2">Moyennes</h4>
-                  <div className="space-y-1 text-xs">
-                    <div>Buts: {ticket.statistics.avgGoals}</div>
-                    <div>Corners: {ticket.statistics.avgCorners}</div>
-                    <div>Cartons: {ticket.statistics.avgCards}</div>
+                
+                {/* Explication des statistiques */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2 text-blue-800">
+                    📊 Comment interpréter ces données ?
+                  </h4>
+                  <div className="text-xs text-blue-700 space-y-1">
+                    <p><strong>• Forme récente :</strong> Plus de 'W' (victoires) = équipe en confiance</p>
+                    <p><strong>• Face-à-face :</strong> Tendance historique entre les équipes</p>
+                    <p><strong>• Buts/match :</strong> Plus de 2.5 = matchs généralement ouverts</p>
+                    <p><strong>• Corners :</strong> Plus de 9 = équipes offensives</p>
+                    <p><strong>• Cartons :</strong> Plus de 4 = match tendu/âpre</p>
                   </div>
                 </div>
               </div>
@@ -211,25 +232,25 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
             )}
           </TabsContent>
 
-          <TabsContent value="osint" className="mt-4">
-            {loadingOSINT ? (
+          <TabsContent value="ai" className="mt-4">
+            {loadingAI ? (
               <div className="text-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-purple-600" />
-                <p className="text-sm text-muted-foreground">Collecte des données OSINT...</p>
-                <p className="text-xs text-muted-foreground mt-1">Sources publiques en ligne</p>
+                <p className="text-sm text-muted-foreground">Analyse IA en cours...</p>
+                <p className="text-xs text-muted-foreground mt-1">Intelligence artificielle • Sources multiples</p>
               </div>
-            ) : osintData ? (
-              <OSINTAnalysis 
-                osintData={osintData} 
-                insights={osintInsights}
+            ) : aiData ? (
+              <AIAnalysis 
+                aiData={aiData} 
+                insights={aiInsights}
                 teamA={ticket.teamA}
                 teamB={ticket.teamB}
               />
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <Eye className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Cliquez pour charger l'analyse OSINT</p>
-                <p className="text-xs mt-1">Données publiques • Sources légales</p>
+                <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Cliquez pour charger l'analyse IA</p>
+                <p className="text-xs mt-1">Intelligence artificielle • Analyse approfondie</p>
               </div>
             )}
           </TabsContent>
