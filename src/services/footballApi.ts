@@ -1,4 +1,4 @@
-// SoccersAPI integration with multi-source validation
+// SoccersAPI integration with real data and multi-source validation
 import { validateTeamMultiSource, getEnrichedTeamData, FreeApiTeamData } from './teamValidationService';
 
 // Types pour les statistiques
@@ -42,6 +42,14 @@ export interface TodayMatch {
   homeTeamId: number;
   awayTeamId: number;
   leagueId: number;
+}
+
+export interface TeamSearchResult {
+  id: number;
+  name: string;
+  league_id: number;
+  country: string;
+  logo?: string;
 }
 
 // Configuration de l'API SoccersAPI avec vraies credentials
