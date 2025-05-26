@@ -5,10 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { getTodayMatches, getMatchAnalysis, TodayMatch } from '@/services/footballApi';
 import { collectAIData } from '@/services/aiService';
+import { collectSocialPredictions } from '@/services/socialPredictionsService';
 import { generatePredictions } from '@/services/predictionEngine';
 import { saveTicket } from '@/services/storage';
 import { BettingTicketData } from '@/components/BettingTicket';
-import { Loader2, TrendingUp, Clock, Trophy, Wifi, WifiOff, RefreshCw, MapPin, Users, Target } from 'lucide-react';
+import { 
+  Loader2, TrendingUp, Clock, Trophy, Wifi, WifiOff, RefreshCw, 
+  MapPin, Users, Target, CheckCircle, AlertCircle, Zap 
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const MesCompos = () => {
@@ -64,7 +68,7 @@ const MesCompos = () => {
       setTimeout(() => {
         toast({
           title: "🎯 Matchs chargés !",
-          description: `${todayMatches.length} vrais matchs disponibles pour analyse IA`,
+          description: `${todayMatches.length} vrais matchs disponibles pour analyse IA + réseaux sociaux`,
         });
       }, 500);
       
@@ -85,20 +89,21 @@ const MesCompos = () => {
     setAnalyzingMatch(match.id);
     
     try {
-      console.log(`🔍 Analyse IA complète: ${match.homeTeam} vs ${match.awayTeam}`);
+      console.log(`🔍 Analyse complète: ${match.homeTeam} vs ${match.awayTeam}`);
       
-      // Analyse simultanée des données statistiques et IA
-      const [analysis, aiData] = await Promise.all([
+      // Analyse simultanée des données statistiques, IA et réseaux sociaux
+      const [analysis, aiData, socialPredictions] = await Promise.all([
         getMatchAnalysis(match.homeTeam, match.awayTeam),
-        collectAIData(match.homeTeam, match.awayTeam)
+        collectAIData(match.homeTeam, match.awayTeam),
+        collectSocialPredictions(match.homeTeam, match.awayTeam)
       ]);
       
       // Génération des prédictions basées sur toutes les données
       const predictions = generatePredictions(match.homeTeam, match.awayTeam, analysis);
       
-      // Création du ticket avec analyse IA complète
+      // Création du ticket avec analyse complète
       const newTicket: BettingTicketData = {
-        id: `ai_analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `full_analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         teamA: match.homeTeam,
         teamB: match.awayTeam,
         predictions,
@@ -123,16 +128,19 @@ const MesCompos = () => {
           country: match.country,
           venue: match.venue,
           time: match.time,
-          status: match.status
-        }
+          status: match.status,
+          date: match.date,
+          result: match.result
+        },
+        socialPredictions
       };
       
       // Sauvegarde
       saveTicket(newTicket);
       
       toast({
-        title: "✅ Analyse IA terminée !",
-        description: `Prédictions avec données réelles pour ${match.homeTeam} vs ${match.awayTeam}`,
+        title: "✅ Analyse complète terminée !",
+        description: `Prédictions IA + ${socialPredictions.length} pronostics sociaux pour ${match.homeTeam} vs ${match.awayTeam}`,
       });
       
       // Redirection vers la page principale pour voir le ticket
@@ -170,6 +178,33 @@ const MesCompos = () => {
     }
   };
 
+  const getMatchStatusBadge = (match: TodayMatch) => {
+    if (match.result?.finished) {
+      return (
+        <div className="flex items-center space-x-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">
+          <CheckCircle className="h-3 w-3" />
+          <span>Terminé</span>
+        </div>
+      );
+    }
+    
+    if (match.status === 'En direct' || match.status.includes('Live')) {
+      return (
+        <div className="flex items-center space-x-1 bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs animate-pulse">
+          <AlertCircle className="h-3 w-3" />
+          <span>Live</span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex items-center space-x-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">
+        <Clock className="h-3 w-3" />
+        <span>Programmé</span>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 pb-20 flex items-center justify-center">
@@ -177,7 +212,7 @@ const MesCompos = () => {
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-6 text-sport-primary" />
           <h3 className="font-semibold text-xl mb-2">🌐 Collecte des matchs réels</h3>
           <p className="text-muted-foreground mb-4">
-            Récupération de 50 vrais matchs depuis les APIs publiques...
+            Récupération de 50 vrais matchs + données sociales en temps réel...
           </p>
           <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
             <div 
@@ -207,7 +242,7 @@ const MesCompos = () => {
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            50 vrais matchs • Analyses IA en temps réel
+            50 vrais matchs • IA + Réseaux sociaux • Temps réel
           </p>
           {lastUpdate && (
             <p className="text-xs text-muted-foreground">
@@ -240,19 +275,21 @@ const MesCompos = () => {
               </div>
               <div>
                 <div className="text-lg font-bold text-sport-success">
-                  {matches.filter(m => getMatchPriority(m) === 'high').length}
+                  {matches.filter(m => m.result?.finished).length}
                 </div>
-                <div className="text-xs text-muted-foreground">Top</div>
+                <div className="text-xs text-muted-foreground">Terminés</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-sport-warning">
-                  {matches.filter(m => m.status !== 'Terminé').length}
+                  {matches.filter(m => m.status === 'En direct' || m.status.includes('Live')).length}
                 </div>
                 <div className="text-xs text-muted-foreground">Live</div>
               </div>
               <div>
-                <div className="text-lg font-bold text-sport-primary">IA</div>
-                <div className="text-xs text-muted-foreground">Analyse</div>
+                <div className="text-lg font-bold text-sport-primary">
+                  <Zap className="h-4 w-4 mx-auto" />
+                </div>
+                <div className="text-xs text-muted-foreground">Social</div>
               </div>
             </div>
           </CardContent>
@@ -263,6 +300,8 @@ const MesCompos = () => {
           {matches.length > 0 ? (
             matches.map((match) => {
               const priority = getMatchPriority(match);
+              const isFinished = match.result?.finished || false;
+              
               return (
                 <Card key={match.id} className="gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
                   <CardHeader className="pb-2">
@@ -273,10 +312,7 @@ const MesCompos = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         {getPriorityBadge(priority)}
-                        <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {match.time}
-                        </div>
+                        {getMatchStatusBadge(match)}
                       </div>
                     </div>
                   </CardHeader>
@@ -284,9 +320,28 @@ const MesCompos = () => {
                     {/* Équipes */}
                     <div className="text-center">
                       <div className="text-sm font-semibold truncate">{match.homeTeam}</div>
-                      <div className="text-lg font-bold text-sport-primary my-1">VS</div>
+                      {isFinished && match.result ? (
+                        <div className="text-lg font-bold text-green-600 my-1">
+                          {match.result.homeScore} - {match.result.awayScore}
+                        </div>
+                      ) : (
+                        <div className="text-lg font-bold text-sport-primary my-1">VS</div>
+                      )}
                       <div className="text-sm font-semibold truncate">{match.awayTeam}</div>
                     </div>
+                    
+                    {/* Résultat si terminé */}
+                    {isFinished && match.result && (
+                      <div className="text-center p-2 bg-green-50 rounded-lg">
+                        <div className="text-xs font-medium text-green-800">
+                          {match.result.homeScore > match.result.awayScore 
+                            ? `Victoire ${match.homeTeam}` 
+                            : match.result.homeScore < match.result.awayScore 
+                              ? `Victoire ${match.awayTeam}` 
+                              : 'Match nul'}
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Informations match compactes */}
                     <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
@@ -295,8 +350,8 @@ const MesCompos = () => {
                         <span className="truncate max-w-20">{match.country}</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Users className="h-3 w-3" />
-                        <span className="truncate max-w-20">{match.venue}</span>
+                        <Clock className="h-3 w-3" />
+                        <span>{match.time}</span>
                       </div>
                     </div>
                     
@@ -309,7 +364,7 @@ const MesCompos = () => {
                       {analyzingMatch === match.id ? (
                         <>
                           <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                          Analyse IA...
+                          Analyse IA + Social...
                         </>
                       ) : !isOnline ? (
                         <>
@@ -319,7 +374,7 @@ const MesCompos = () => {
                       ) : (
                         <>
                           <Target className="h-3 w-3 mr-2" />
-                          Analyser avec IA
+                          Analyser avec IA + Social
                         </>
                       )}
                     </Button>
@@ -343,7 +398,7 @@ const MesCompos = () => {
         {/* Footer info compact */}
         <div className="text-center pt-2">
           <p className="text-xs text-muted-foreground">
-            🌐 Données réelles • 🤖 IA • 📊 50 matchs analysés
+            🌐 Données réelles • 🤖 IA • 📱 Réseaux sociaux • 📊 50 matchs analysés
           </p>
         </div>
       </div>

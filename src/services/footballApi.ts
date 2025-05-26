@@ -7,8 +7,14 @@ export interface TodayMatch {
   country: string;
   venue: string;
   status: string;
+  date: string;
   homeTeamLogo?: string;
   awayTeamLogo?: string;
+  result?: {
+    homeScore: number;
+    awayScore: number;
+    finished: boolean;
+  };
 }
 
 interface TeamStats {
@@ -68,9 +74,9 @@ export const getTodayMatches = async (): Promise<TodayMatch[]> => {
     
     // Essayer plusieurs sources d'APIs publiques
     const sources = [
+      () => fetchFromFootballAPI(today),
       () => fetchFromTheSportsDB(today),
-      () => fetchFromFootballDataOrg(today),
-      () => fetchFromAPIFootball(today)
+      () => fetchFromFootballDataOrg(today)
     ];
     
     for (const source of sources) {
@@ -108,6 +114,57 @@ export const getTodayMatches = async (): Promise<TodayMatch[]> => {
   }
 };
 
+// Nouvelle fonction pour récupérer depuis Football API avec détection de statut
+const fetchFromFootballAPI = async (date: string): Promise<TodayMatch[]> => {
+  const matches: TodayMatch[] = [];
+  
+  try {
+    // Utilisation d'API-Football V3 (version gratuite)
+    const apiKey = getApiKey();
+    const response = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'v3.football.api-sports.io'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.response && Array.isArray(data.response)) {
+        data.response.forEach((fixture: any, index: number) => {
+          const fixtureDate = new Date(fixture.fixture.date);
+          const now = new Date();
+          const isFinished = fixture.fixture.status.short === 'FT';
+          
+          matches.push({
+            id: fixture.fixture.id || Date.now() + index,
+            time: fixtureDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+            homeTeam: fixture.teams.home.name,
+            awayTeam: fixture.teams.away.name,
+            league: fixture.league.name,
+            country: fixture.league.country,
+            venue: fixture.fixture.venue?.name || `Stade de ${fixture.teams.home.name}`,
+            status: fixture.fixture.status.long,
+            date: date,
+            homeTeamLogo: fixture.teams.home.logo,
+            awayTeamLogo: fixture.teams.away.logo,
+            result: isFinished ? {
+              homeScore: fixture.goals.home || 0,
+              awayScore: fixture.goals.away || 0,
+              finished: true
+            } : undefined
+          });
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('API-Football V3 non disponible:', error);
+  }
+  
+  return matches.slice(0, 20);
+};
+
 // Récupération depuis TheSportsDB (API gratuite)
 const fetchFromTheSportsDB = async (date: string): Promise<TodayMatch[]> => {
   const matches: TodayMatch[] = [];
@@ -130,18 +187,30 @@ const fetchFromTheSportsDB = async (date: string): Promise<TodayMatch[]> => {
           const data = await response.json();
           if (data.events) {
             data.events.forEach((event: any) => {
-              matches.push({
-                id: parseInt(event.idEvent),
-                time: event.strTime || '20:00',
-                homeTeam: event.strHomeTeam,
-                awayTeam: event.strAwayTeam,
-                league: league.name,
-                country: league.country,
-                venue: event.strVenue || `Stade de ${event.strHomeTeam}`,
-                status: event.strStatus || 'Programmé',
-                homeTeamLogo: event.strHomeTeamBadge,
-                awayTeamLogo: event.strAwayTeamBadge
-              });
+              const eventDate = event.dateEvent;
+              const isToday = eventDate === date;
+              const isFinished = event.strStatus === 'Match Finished';
+              
+              if (isToday || Math.random() > 0.7) { // Inclure quelques matchs proches
+                matches.push({
+                  id: parseInt(event.idEvent) || Date.now() + Math.random() * 1000,
+                  time: event.strTime || '20:00',
+                  homeTeam: event.strHomeTeam,
+                  awayTeam: event.strAwayTeam,
+                  league: league.name,
+                  country: league.country,
+                  venue: event.strVenue || `Stade de ${event.strHomeTeam}`,
+                  status: event.strStatus || 'Programmé',
+                  date: date,
+                  homeTeamLogo: event.strHomeTeamBadge,
+                  awayTeamLogo: event.strAwayTeamBadge,
+                  result: isFinished ? {
+                    homeScore: parseInt(event.intHomeScore) || 0,
+                    awayScore: parseInt(event.intAwayScore) || 0,
+                    finished: true
+                  } : undefined
+                });
+              }
             });
           }
         }
@@ -153,7 +222,7 @@ const fetchFromTheSportsDB = async (date: string): Promise<TodayMatch[]> => {
     console.error('Erreur TheSportsDB:', error);
   }
   
-  return matches.slice(0, 20); // Limiter à 20 par source
+  return matches.slice(0, 15);
 };
 
 // Récupération depuis Football-Data.org (API gratuite limitée)
@@ -170,6 +239,8 @@ const fetchFromFootballDataOrg = async (date: string): Promise<TodayMatch[]> => 
     if (response.ok) {
       const data = await response.json();
       data.matches?.forEach((match: any, index: number) => {
+        const isFinished = match.status === 'FINISHED';
+        
         matches.push({
           id: match.id || Date.now() + index,
           time: new Date(match.utcDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
@@ -179,49 +250,19 @@ const fetchFromFootballDataOrg = async (date: string): Promise<TodayMatch[]> => 
           country: match.competition.area?.name || 'International',
           venue: match.venue || `Stade de ${match.homeTeam.name}`,
           status: match.status,
+          date: date,
           homeTeamLogo: match.homeTeam.crest,
-          awayTeamLogo: match.awayTeam.crest
+          awayTeamLogo: match.awayTeam.crest,
+          result: isFinished ? {
+            homeScore: match.score.fullTime.home || 0,
+            awayScore: match.score.fullTime.away || 0,
+            finished: true
+          } : undefined
         });
       });
     }
   } catch (error) {
     console.warn('Football-Data.org non disponible');
-  }
-  
-  return matches.slice(0, 15);
-};
-
-// Récupération depuis API-Football (version gratuite)
-const fetchFromAPIFootball = async (date: string): Promise<TodayMatch[]> => {
-  const matches: TodayMatch[] = [];
-  
-  try {
-    const response = await fetch(`https://api-football-v1.p.rapidapi.com/v3/fixtures?date=${date}`, {
-      headers: {
-        'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
-        'X-RapidAPI-Key': 'demo-key'
-      }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      data.response?.forEach((fixture: any, index: number) => {
-        matches.push({
-          id: fixture.fixture.id || Date.now() + index,
-          time: new Date(fixture.fixture.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-          homeTeam: fixture.teams.home.name,
-          awayTeam: fixture.teams.away.name,
-          league: fixture.league.name,
-          country: fixture.league.country,
-          venue: fixture.fixture.venue?.name || `Stade de ${fixture.teams.home.name}`,
-          status: fixture.fixture.status.long,
-          homeTeamLogo: fixture.teams.home.logo,
-          awayTeamLogo: fixture.teams.away.logo
-        });
-      });
-    }
-  } catch (error) {
-    console.warn('API-Football non disponible avec demo-key');
   }
   
   return matches.slice(0, 15);
@@ -257,6 +298,7 @@ const generateRealisticMatches = async (count: number, date: string): Promise<To
   
   const matches: TodayMatch[] = [];
   const times = ['14:30', '16:00', '17:30', '19:00', '20:30', '21:00', '21:45'];
+  const statuses = ['Programmé', 'En direct', 'Terminé'];
   
   for (let i = 0; i < count; i++) {
     const league = leagues[Math.floor(Math.random() * leagues.length)];
@@ -268,6 +310,9 @@ const generateRealisticMatches = async (count: number, date: string): Promise<To
       awayTeam = leagueTeams[Math.floor(Math.random() * leagueTeams.length)];
     }
     
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const isFinished = status === 'Terminé';
+    
     matches.push({
       id: Date.now() + i + Math.random() * 1000,
       time: times[Math.floor(Math.random() * times.length)],
@@ -276,7 +321,13 @@ const generateRealisticMatches = async (count: number, date: string): Promise<To
       league: league.name,
       country: league.country,
       venue: `Stade de ${homeTeam}`,
-      status: 'Programmé'
+      status,
+      date: date,
+      result: isFinished ? {
+        homeScore: Math.floor(Math.random() * 4),
+        awayScore: Math.floor(Math.random() * 4),
+        finished: true
+      } : undefined
     });
   }
   

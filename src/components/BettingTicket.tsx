@@ -12,7 +12,10 @@ import {
   Target, 
   Calendar,
   Brain,
-  Loader2
+  Loader2,
+  CheckCircle,
+  Clock,
+  Trophy
 } from 'lucide-react';
 
 export interface BettingPrediction {
@@ -38,6 +41,33 @@ export interface BettingTicketData {
     avgCorners: string;
     avgCards: string;
   };
+  aiAnalysis?: {
+    matchAnalysis: string;
+    recommendedBets: any[];
+    socialSentiment: any;
+    bettingTrends: any;
+    matchPreview: any;
+  };
+  matchInfo?: {
+    league: string;
+    country: string;
+    venue: string;
+    time: string;
+    status: string;
+    date?: string;
+    result?: {
+      homeScore: number;
+      awayScore: number;
+      finished: boolean;
+    };
+  };
+  socialPredictions?: {
+    source: string;
+    prediction: string;
+    confidence: number;
+    author: string;
+    platform: string;
+  }[];
 }
 
 interface BettingTicketProps {
@@ -57,7 +87,7 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
   const [activeTab, setActiveTab] = useState('predictions');
 
   const loadAIAnalysis = async () => {
-    if (aiData) return; // Déjà chargé
+    if (aiData) return;
     
     setLoadingAI(true);
     try {
@@ -101,14 +131,23 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
     </div>
   );
 
+  const isMatchFinished = ticket.matchInfo?.result?.finished || false;
+  const matchResult = ticket.matchInfo?.result;
+
   return (
     <Card className="gradient-card shadow-lg border-0 animate-fade-in overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-bold">
-            🎯 {ticket.teamA} vs {ticket.teamB}
+            {isMatchFinished ? '✅' : '🎯'} {ticket.teamA} vs {ticket.teamB}
           </CardTitle>
           <div className="flex items-center space-x-2">
+            {isMatchFinished && (
+              <Badge variant="outline" className="text-xs px-2 py-1 bg-green-100 text-green-700">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Terminé
+              </Badge>
+            )}
             {onToggleFavorite && (
               <Button
                 variant="ghost"
@@ -121,9 +160,35 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
             )}
           </div>
         </div>
+
+        {/* Résultat du match si terminé */}
+        {isMatchFinished && matchResult && (
+          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="text-center">
+              <div className="text-lg font-bold text-green-800 mb-1">
+                RÉSULTAT FINAL
+              </div>
+              <div className="text-2xl font-bold text-green-900">
+                {ticket.teamA} {matchResult.homeScore} - {matchResult.awayScore} {ticket.teamB}
+              </div>
+              <div className="text-sm text-green-700 mt-1">
+                {matchResult.homeScore > matchResult.awayScore 
+                  ? `Victoire de ${ticket.teamA}` 
+                  : matchResult.homeScore < matchResult.awayScore 
+                    ? `Victoire de ${ticket.teamB}` 
+                    : 'Match nul'}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center space-x-1">
-            <Calendar className="h-3 w-3" />
+            {isMatchFinished ? (
+              <CheckCircle className="h-3 w-3 text-green-600" />
+            ) : (
+              <Clock className="h-3 w-3" />
+            )}
             <span>{formatDate(ticket.createdAt)}</span>
           </div>
           <Badge variant="outline" className="text-xs px-1 py-0">
@@ -134,10 +199,14 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
 
       <CardContent className="p-3">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-8">
+          <TabsList className="grid w-full grid-cols-4 h-8">
             <TabsTrigger value="predictions" className="flex items-center space-x-1 text-xs">
               <Target className="h-3 w-3" />
               <span>Prédictions</span>
+            </TabsTrigger>
+            <TabsTrigger value="social" className="flex items-center space-x-1 text-xs">
+              <TrendingUp className="h-3 w-3" />
+              <span>Social</span>
             </TabsTrigger>
             <TabsTrigger value="stats" className="flex items-center space-x-1 text-xs">
               <BarChart3 className="h-3 w-3" />
@@ -176,6 +245,36 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
             ))}
           </TabsContent>
 
+          <TabsContent value="social" className="space-y-2 mt-3">
+            {ticket.socialPredictions && ticket.socialPredictions.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground mb-2">
+                  📱 Pronostics des réseaux sociaux
+                </div>
+                {ticket.socialPredictions.map((pred, index) => (
+                  <div key={index} className="p-2 border rounded-lg bg-blue-50/50">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center space-x-1">
+                        <Badge variant="outline" className="text-xs px-1 py-0">
+                          {pred.platform}
+                        </Badge>
+                        <span className="text-xs font-medium">{pred.author}</span>
+                      </div>
+                      <div className={`w-2 h-2 rounded-full ${getConfidenceColor(pred.confidence)}`} />
+                    </div>
+                    <p className="text-xs font-semibold text-blue-800 mb-1">{pred.prediction}</p>
+                    <p className="text-xs text-muted-foreground">{pred.source}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <TrendingUp className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">Aucun pronostic social disponible</p>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="stats" className="space-y-3 mt-3">
             {ticket.statistics ? (
               <div className="space-y-3">
@@ -209,7 +308,6 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
                   )}
                 </div>
                 
-                {/* Guide d'interprétation - Version mobile compacte */}
                 <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
                   <h4 className="font-medium text-xs mb-1 text-blue-800">
                     📊 Guide d'interprétation
