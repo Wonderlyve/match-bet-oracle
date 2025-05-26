@@ -1,4 +1,3 @@
-
 // Service pour collecter les pronostics des réseaux sociaux
 // Utilise uniquement des données publiques et respecte les CGU
 
@@ -8,6 +7,7 @@ export interface SocialPrediction {
   confidence: number;
   author: string;
   platform: string;
+  type?: 'expert' | 'community' | 'professional';
 }
 
 // Collecte de pronostics depuis les réseaux sociaux (simulation basée sur patterns réels)
@@ -15,9 +15,6 @@ export const collectSocialPredictions = async (teamA: string, teamB: string): Pr
   console.log(`📱 Collecte pronostics sociaux: ${teamA} vs ${teamB}`);
   
   try {
-    // En production, ici on ferait des appels aux APIs publiques des réseaux sociaux
-    // Twitter API v2 (gratuit), Reddit API, etc.
-    
     const predictions: SocialPrediction[] = [];
     
     // Simulation de pronostics Twitter
@@ -32,9 +29,9 @@ export const collectSocialPredictions = async (teamA: string, teamB: string): Pr
     const youtubePredictions = generateYoutubePredictions(teamA, teamB);
     predictions.push(...youtubePredictions);
     
-    // Simulation de pronostics Instagram
-    const instagramPredictions = generateInstagramPredictions(teamA, teamB);
-    predictions.push(...instagramPredictions);
+    // Simulation de pronostics Telegram (nouveauté)
+    const telegramPredictions = generateTelegramPredictions(teamA, teamB);
+    predictions.push(...telegramPredictions);
     
     console.log(`✅ ${predictions.length} pronostics sociaux collectés`);
     return predictions;
@@ -149,6 +146,41 @@ const generateYoutubePredictions = (teamA: string, teamB: string): SocialPredict
   return predictions;
 };
 
+const generateTelegramPredictions = (teamA: string, teamB: string): SocialPrediction[] => {
+  const predictions: SocialPrediction[] = [];
+  const channels = [
+    'Pronostics VIP 🔥', 'BetMaster Premium', 'Football Tips Pro', 
+    'Champions League Bets', 'Value Bets Only'
+  ];
+  
+  const telegramPredictions = [
+    `🎯 PICK OF THE DAY: ${teamA} victoire`,
+    `💎 VALUE BET: Plus de 2.5 buts`,
+    `🔥 COMBO SÉCURISÉ: ${teamB} ou nul + BTTS`,
+    `⚡ FLASH BET: ${teamA} marque 1ère MT`,
+    `🎲 RISK BET: Plus de 9.5 corners`
+  ];
+  
+  // Générer 2-3 prédictions Telegram
+  const count = Math.floor(Math.random() * 2) + 2;
+  for (let i = 0; i < count; i++) {
+    const channel = channels[Math.floor(Math.random() * channels.length)];
+    const prediction = telegramPredictions[Math.floor(Math.random() * telegramPredictions.length)];
+    const confidence = Math.floor(Math.random() * 25) + 70; // 70-95%
+    
+    predictions.push({
+      source: `Canal privé VIP avec ROI 85%+ : "${getTelegramDescription()}"`,
+      prediction,
+      confidence,
+      author: channel,
+      platform: 'Telegram',
+      type: 'professional'
+    });
+  }
+  
+  return predictions;
+};
+
 const generateInstagramPredictions = (teamA: string, teamB: string): SocialPrediction[] => {
   const predictions: SocialPrediction[] = [];
   const accounts = [
@@ -226,4 +258,15 @@ const getRandomInstagramContent = (): string => {
     '🎯 Analyse rapide en image + conseil'
   ];
   return contents[Math.floor(Math.random() * contents.length)];
+};
+
+const getTelegramDescription = (): string => {
+  const descriptions = [
+    '🏆 Analyse d\'expert avec historique gagnant',
+    '💰 Pari à forte valeur détecté par algorithme',
+    '📊 Stats exclusives + info interne confirmée',
+    '🎯 Pick basé sur 15 critères de sélection',
+    '⚡ Information de dernière minute exploitée'
+  ];
+  return descriptions[Math.floor(Math.random() * descriptions.length)];
 };

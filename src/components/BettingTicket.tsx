@@ -67,7 +67,24 @@ export interface BettingTicketData {
     confidence: number;
     author: string;
     platform: string;
+    type?: 'expert' | 'community' | 'professional';
   }[];
+  externalPredictions?: {
+    source: string;
+    match: string;
+    prediction: string;
+    confidence: number;
+    odds?: string;
+    reasoning?: string;
+    type: 'result' | 'goals' | 'btts' | 'corners' | 'cards' | 'special';
+    site: 'pronostics-football-365' | 'forebet' | 'other';
+  }[];
+  professionalTrends?: {
+    mostPopularPrediction: string;
+    averageConfidence: number;
+    consensusLevel: 'low' | 'medium' | 'high';
+    recommendedBets: string[];
+  };
 }
 
 interface BettingTicketProps {
@@ -199,7 +216,7 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
 
       <CardContent className="p-3">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-8">
+          <TabsList className="grid w-full grid-cols-5 h-8">
             <TabsTrigger value="predictions" className="flex items-center space-x-1 text-xs">
               <Target className="h-3 w-3" />
               <span>Prédictions</span>
@@ -207,6 +224,10 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
             <TabsTrigger value="social" className="flex items-center space-x-1 text-xs">
               <TrendingUp className="h-3 w-3" />
               <span>Social</span>
+            </TabsTrigger>
+            <TabsTrigger value="pro" className="flex items-center space-x-1 text-xs">
+              <Star className="h-3 w-3" />
+              <span>Pro</span>
             </TabsTrigger>
             <TabsTrigger value="stats" className="flex items-center space-x-1 text-xs">
               <BarChart3 className="h-3 w-3" />
@@ -271,6 +292,68 @@ const BettingTicket: React.FC<BettingTicketProps> = ({
               <div className="text-center py-6 text-muted-foreground">
                 <TrendingUp className="h-6 w-6 mx-auto mb-2 opacity-50" />
                 <p className="text-xs">Aucun pronostic social disponible</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="pro" className="space-y-2 mt-3">
+            {ticket.externalPredictions && ticket.externalPredictions.length > 0 ? (
+              <div className="space-y-3">
+                <div className="text-xs font-medium text-muted-foreground mb-2">
+                  🏆 Pronostics des sites professionnels
+                </div>
+                
+                {/* Tendances professionnelles */}
+                {ticket.professionalTrends && (
+                  <div className="p-2 border rounded-lg bg-purple-50/50 mb-3">
+                    <h4 className="text-xs font-bold text-purple-800 mb-2">📊 Consensus Professionnel</h4>
+                    <div className="space-y-1">
+                      <p className="text-xs"><strong>Prédiction la plus populaire:</strong> {ticket.professionalTrends.mostPopularPrediction}</p>
+                      <p className="text-xs"><strong>Confiance moyenne:</strong> {ticket.professionalTrends.averageConfidence.toFixed(0)}%</p>
+                      <p className="text-xs"><strong>Niveau de consensus:</strong> 
+                        <span className={`ml-1 px-1 py-0.5 rounded text-xs ${
+                          ticket.professionalTrends.consensusLevel === 'high' ? 'bg-green-100 text-green-700' :
+                          ticket.professionalTrends.consensusLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {ticket.professionalTrends.consensusLevel === 'high' ? 'Élevé' :
+                           ticket.professionalTrends.consensusLevel === 'medium' ? 'Moyen' : 'Faible'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Prédictions par site */}
+                {ticket.externalPredictions.map((pred, index) => (
+                  <div key={index} className="p-2 border rounded-lg bg-white/80">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center space-x-1">
+                        <Badge variant="outline" className={`text-xs px-1 py-0 ${
+                          pred.site === 'pronostics-football-365' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {pred.site === 'pronostics-football-365' ? 'PF365' : 'Forebet'}
+                        </Badge>
+                        {pred.odds && (
+                          <Badge variant="outline" className="text-xs px-1 py-0">
+                            Cote: {pred.odds}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className={`w-2 h-2 rounded-full ${getConfidenceColor(pred.confidence)}`} />
+                    </div>
+                    <p className="text-xs font-semibold text-gray-800 mb-1">{pred.prediction}</p>
+                    <p className="text-xs text-muted-foreground mb-1">{pred.source}</p>
+                    {pred.reasoning && (
+                      <p className="text-xs text-gray-600 italic">{pred.reasoning}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Star className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">Aucun pronostic professionnel disponible</p>
               </div>
             )}
           </TabsContent>

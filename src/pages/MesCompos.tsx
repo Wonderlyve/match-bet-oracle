@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,12 +5,13 @@ import { useToast } from '@/hooks/use-toast';
 import { getTodayMatches, getMatchAnalysis, TodayMatch } from '@/services/footballApi';
 import { collectAIData } from '@/services/aiService';
 import { collectSocialPredictions } from '@/services/socialPredictionsService';
+import { collectExternalPredictions, analyzeProfessionalTrends } from '@/services/externalPredictionsService';
 import { generatePredictions } from '@/services/predictionEngine';
 import { saveTicket } from '@/services/storage';
 import { BettingTicketData } from '@/components/BettingTicket';
 import { 
   Loader2, TrendingUp, Clock, Trophy, Wifi, WifiOff, RefreshCw, 
-  MapPin, Users, Target, CheckCircle, AlertCircle, Zap 
+  MapPin, Users, Target, CheckCircle, AlertCircle, Zap, Globe, Star
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -91,19 +91,23 @@ const MesCompos = () => {
     try {
       console.log(`🔍 Analyse complète: ${match.homeTeam} vs ${match.awayTeam}`);
       
-      // Analyse simultanée des données statistiques, IA et réseaux sociaux
-      const [analysis, aiData, socialPredictions] = await Promise.all([
+      // Analyse simultanée des données statistiques, IA, réseaux sociaux ET sites spécialisés
+      const [analysis, aiData, socialPredictions, externalPredictions] = await Promise.all([
         getMatchAnalysis(match.homeTeam, match.awayTeam),
         collectAIData(match.homeTeam, match.awayTeam),
-        collectSocialPredictions(match.homeTeam, match.awayTeam)
+        collectSocialPredictions(match.homeTeam, match.awayTeam),
+        collectExternalPredictions(match.homeTeam, match.awayTeam)
       ]);
+      
+      // Analyse des tendances professionnelles
+      const professionalTrends = analyzeProfessionalTrends(externalPredictions);
       
       // Génération des prédictions basées sur toutes les données
       const predictions = generatePredictions(match.homeTeam, match.awayTeam, analysis);
       
-      // Création du ticket avec analyse complète
+      // Création du ticket avec analyse complète incluant les prédictions externes
       const newTicket: BettingTicketData = {
-        id: `full_analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `complete_analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         teamA: match.homeTeam,
         teamB: match.awayTeam,
         predictions,
@@ -132,15 +136,17 @@ const MesCompos = () => {
           date: match.date,
           result: match.result
         },
-        socialPredictions
+        socialPredictions,
+        externalPredictions,
+        professionalTrends
       };
       
       // Sauvegarde
       saveTicket(newTicket);
       
       toast({
-        title: "✅ Analyse complète terminée !",
-        description: `Prédictions IA + ${socialPredictions.length} pronostics sociaux pour ${match.homeTeam} vs ${match.awayTeam}`,
+        title: "✅ Analyse 360° terminée !",
+        description: `IA + ${socialPredictions.length} pronostics sociaux + ${externalPredictions.length} prédictions pro pour ${match.homeTeam} vs ${match.awayTeam}`,
       });
       
       // Redirection vers la page principale pour voir le ticket
@@ -212,7 +218,7 @@ const MesCompos = () => {
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-6 text-sport-primary" />
           <h3 className="font-semibold text-xl mb-2">🌐 Collecte des matchs réels</h3>
           <p className="text-muted-foreground mb-4">
-            Récupération de 50 vrais matchs + données sociales en temps réel...
+            Récupération de 50 vrais matchs + données sociales + pronostics pro en temps réel...
           </p>
           <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
             <div 
@@ -242,7 +248,7 @@ const MesCompos = () => {
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            50 vrais matchs • IA + Réseaux sociaux • Temps réel
+            50 vrais matchs • IA + Réseaux sociaux + Pronostics pro • Temps réel
           </p>
           {lastUpdate && (
             <p className="text-xs text-muted-foreground">
@@ -265,10 +271,10 @@ const MesCompos = () => {
           </Button>
         </div>
 
-        {/* Statistiques rapides compactes */}
+        {/* Statistiques rapides compactes avec nouvelles sources */}
         <Card className="gradient-card border-0 shadow-md">
           <CardContent className="p-3">
-            <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="grid grid-cols-5 gap-2 text-center">
               <div>
                 <div className="text-lg font-bold text-sport-primary">{matches.length}</div>
                 <div className="text-xs text-muted-foreground">Matchs</div>
@@ -284,6 +290,12 @@ const MesCompos = () => {
                   {matches.filter(m => m.status === 'En direct' || m.status.includes('Live')).length}
                 </div>
                 <div className="text-xs text-muted-foreground">Live</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-purple-600">
+                  <Globe className="h-4 w-4 mx-auto" />
+                </div>
+                <div className="text-xs text-muted-foreground">Pro Sites</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-sport-primary">
@@ -355,7 +367,7 @@ const MesCompos = () => {
                       </div>
                     </div>
                     
-                    {/* Bouton d'analyse */}
+                    {/* Bouton d'analyse amélioré */}
                     <Button 
                       onClick={() => analyzeMatch(match)}
                       disabled={analyzingMatch === match.id || !isOnline}
@@ -364,7 +376,7 @@ const MesCompos = () => {
                       {analyzingMatch === match.id ? (
                         <>
                           <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                          Analyse IA + Social...
+                          Analyse 360° en cours...
                         </>
                       ) : !isOnline ? (
                         <>
@@ -373,8 +385,8 @@ const MesCompos = () => {
                         </>
                       ) : (
                         <>
-                          <Target className="h-3 w-3 mr-2" />
-                          Analyser avec IA + Social
+                          <Star className="h-3 w-3 mr-2" />
+                          Analyse 360° (IA + Social + Pro)
                         </>
                       )}
                     </Button>
@@ -398,7 +410,7 @@ const MesCompos = () => {
         {/* Footer info compact */}
         <div className="text-center pt-2">
           <p className="text-xs text-muted-foreground">
-            🌐 Données réelles • 🤖 IA • 📱 Réseaux sociaux • 📊 50 matchs analysés
+            🌐 Données réelles • 🤖 IA • 📱 Réseaux sociaux • 🏆 Pronostics Pro • 📊 Analyse 360°
           </p>
         </div>
       </div>
