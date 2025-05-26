@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Settings } from 'lucide-react';
+import { Home, Info, Smartphone } from 'lucide-react';
 
 const BottomNavigation = () => {
   const location = useLocation();
@@ -13,14 +13,14 @@ const BottomNavigation = () => {
       label: 'Analyses'
     },
     {
-      path: '/mes-compos',
-      icon: Calendar,
-      label: 'Mes Compos'
+      path: '/infos',
+      icon: Info,
+      label: 'Infos'
     },
     {
-      path: '/settings',
-      icon: Settings,
-      label: 'Paramètres'
+      path: '/medias',
+      icon: Smartphone,
+      label: 'Médias'
     }
   ];
 

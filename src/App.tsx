@@ -6,8 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import BottomNavigation from "@/components/BottomNavigation";
 import Index from "./pages/Index";
-import MesCompos from "./pages/MesCompos";
-import Settings from "./pages/Settings";
+import Infos from "./pages/Infos";
+import Medias from "./pages/Medias";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,8 +21,8 @@ const App = () => (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/mes-compos" element={<MesCompos />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/infos" element={<Infos />} />
+            <Route path="/medias" element={<Medias />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <BottomNavigation />
